@@ -242,3 +242,10 @@ Feature: Test API calls on Machine 1
 
 		Then a response for "findTransactions" should exist
 
+	@now
+	Scenario: Expect calls to fail
+	    This test checks that the nodes containing a remote-limit-api flag respond empty to apiCalls within the
+	    remote-limit list.
+
+
+
