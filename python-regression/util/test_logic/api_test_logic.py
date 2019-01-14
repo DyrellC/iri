@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def prepare_api_call(node_name):
+def prepare_api_call(node_name, **seed):
     """
     Prepares an api target as an entry point for API calls on a specified node.
 
@@ -19,7 +19,7 @@ def prepare_api_call(node_name):
     host = world.machine['nodes'][node_name]['host']
     port = world.machine['nodes'][node_name]['ports']['api']
     address = "http://" + host + ":" + str(port)
-    api = Iota(address)
+    api = Iota(address, **seed)
     logger.info('API call prepared for %s', address)
     return api
 
@@ -84,33 +84,49 @@ def prepare_options(args, option_list):
 
             if arg_type == "int":
                 value = int(value)
+
             elif arg_type == "list":
                 value = [value]
+
             elif arg_type == "nodeAddress":
                 host = world.machine['nodes'][value]['host']
                 port = world.machine['nodes'][value]['ports']['gossip-udp']
                 address = "udp://" + host + ":" + str(port)
                 value = [address.decode()]
+
             elif arg_type == "staticValue":
                 value = getattr(static_vals, value)
+
             elif arg_type == "staticList":
                 address = getattr(static_vals, value)
                 value = [address]
+
             elif arg_type == "bool":
                 if value == "False":
                     value = False
                 else:
                     value = True
+
             elif arg_type == "responseValue":
                 config = fetch_config('nodeId')
                 response = fetch_response(value)
                 value = response[config]
+
             elif arg_type == "responseList":
                 config = fetch_config('nodeId')
                 response = fetch_response(value)
                 value = [response[config]]
 
-            option_list[key] = value
+            elif arg_type == "configValue":
+                node = fetch_config('nodeId')
+                value = world.config[value][node]
+
+            elif arg_type == "configList":
+                node = fetch_config('nodeId')
+                value = [world.config[value][node]]
+
+            if key != 'seed':
+                option_list[key] = value
 
 
 def fetch_call(api_call, api, options):
@@ -160,12 +176,12 @@ def assign_nodes(node, node_list):
     if node == 'all nodes':
         for current_node in world.machine['nodes']:
             api = prepare_api_call(current_node)
-            node_list[current_node] = api
+            node_list[current_node] = {'api': api}
         node = next(iter(world.machine['nodes']))
         world.config['nodeId'] = node
     else:
         api = prepare_api_call(node)
-        node_list[node] = api
+        node_list[node] = {'api': api}
         world.config['nodeId'] = node
 
 

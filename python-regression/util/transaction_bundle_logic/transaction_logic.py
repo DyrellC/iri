@@ -1,4 +1,5 @@
-from iota import ProposedBundle,ProposedTransaction,Address,Tag
+from iota import ProposedBundle, ProposedTransaction, Address, Tag
+from util import static_vals as static
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -25,26 +26,37 @@ def create_transaction_bundle(address, tag, value):
     return bundle
 
 
-def create_and_attach_transaction(api, arg_list):
+def create_and_attach_transaction(api, value_transaction, arg_list, *reference):
     """
     Create a transaction and attach it to the tangle.
 
     :param api: The api target you would like to make the call to
+    :param value_transaction: A bool to determine if this transaction is a value or zero value transaction
     :param arg_list: The argument list (dictionary) for the transaction
     :return sent: The return value for the attachToTangle call (contains the attached transaction trytes)
     """
     transaction = ProposedTransaction(**arg_list)
 
-    bundle = ProposedBundle()
-    bundle.add_transaction(transaction)
-    bundle.finalize()
-    trytes = str(bundle[0].as_tryte_string())
+    if value_transaction:
+        inputs = api.get_inputs(start=0, stop=10, threshold=0)
+        prepared_transaction = api.prepare_transfer(
+            transfers=[transaction],
+            inputs=[inputs['inputs'][0]],
+            change_address=Address(getattr(static, "TEST_EMPTY_ADDRESS"))
+        )
+    else:
+        prepared_transaction = api.prepare_transfer(
+            transfers=[transaction]
+        )
 
     gtta = api.get_transactions_to_approve(depth=3)
-    branch = str(gtta['branchTransaction'])
     trunk = str(gtta['trunkTransaction'])
+    if reference:
+        branch = reference[0]
+    else:
+        branch = str(gtta['branchTransaction'])
 
-    sent = api.attach_to_tangle(trunk, branch, [trytes], 9)
+    sent = api.attach_to_tangle(trunk, branch, prepared_transaction['trytes'], 9)
     return sent
 
 
