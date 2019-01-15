@@ -1,7 +1,6 @@
 from aloe import world, step
 from util.test_logic import api_test_logic as api_utils
 from util.response_logic import response_handling as response_handling
-from util import static_vals as static
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -87,8 +86,9 @@ def check_response_for_value(step, api_call):
             if isinstance(response_value, list):
                 response_value = response_value[0]
 
-            assert expected_value == response_value, "The expected value {} does not match""\
-                                                     ""the response value: {}".format(expected_value, response_value)
+            assert expected_value == response_value, "The expected value {} does not match"" \
+            ""the response value: {}".format(expected_value, response_value)
+
     logger.info('Response contained expected values')
 
 
@@ -208,14 +208,3 @@ def compare_responses(value, milestone_list, transaction_list, transaction_count
             transaction_list.append(value)
             transaction_counter_list.append(1)
             logger.debug('added transaction "{}" to transaction list'.format(value))
-
-
-@step(r'the response for "([^"]+)" on "([^"]+)" is stored in the static value "([^"]+)"')
-def store_response_in_static(step, api_call, node_name, static_variable):
-    world.config['nodeId'] = node_name
-
-    response = world.responses[api_call][node_name]
-    if api_call == 'findTransactions':
-        response = response['hashes']
-
-    setattr(static, static_variable, response)

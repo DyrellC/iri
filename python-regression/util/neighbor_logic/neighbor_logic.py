@@ -17,8 +17,7 @@ def check_if_neighbors(api, neighbors, expected_neighbor):
     """
     is_neighbor = False
     for neighbor in enumerate(neighbors):
-        logger.info(neighbor)
-        if expected_neighbor == neighbors[neighbor[0]]['address']:
+        if expected_neighbor == neighbors[neighbor]['address']:
             logger.info("Already a neighbor")
             is_neighbor = True
         else:
