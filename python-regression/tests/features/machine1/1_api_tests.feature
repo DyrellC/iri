@@ -231,7 +231,11 @@ Feature: Test API calls on Machine 1
 		Send a test transaction from one node in a machine with a unique tag, and find that transaction
 		through a different node in the same machine
 		
-		Given "nodeA" and "nodeB" are neighbors
+		Given the following nodes are neighbors:
+		|nodes		|
+		|nodeA		|
+		|nodeB		|
+
 		When a transaction is generated and attached on "nodeA" with:
 		|keys       |values				|type           |
 		|address    |TEST_ADDRESS			|staticValue    |

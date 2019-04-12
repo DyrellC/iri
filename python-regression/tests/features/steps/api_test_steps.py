@@ -4,6 +4,7 @@ from util.test_logic import api_test_logic as api_utils
 from util.threading_logic import pool_logic as pool
 from util.neighbor_logic import neighbor_logic as neighbors
 from util.response_logic import response_handling as responses
+from util.test_logic import value_fetch_logic as value_fetch
 from time import sleep, time
 
 import logging
@@ -185,35 +186,29 @@ def spam_call(step, api_call, num_tests, node):
     logger.info('Time spent on loop: {}'.format(time_spent))
 
 
-@step(r'"([^"]+)" and "([^"]+)" are neighbors')
-def make_neighbors(step, node1, node2):
+@step(r'The following nodes are neighbors:')
+def make_neighbors(step):
     """
     Ensures that the specified nodes are neighbored with one another.
 
-    :param node1: The identifier for the first node (ie nodeA)
-    :param node2: The identifier for the second node (ie nodeB)
+    :param step.hashes: A list of nodes that will be neighbored with one another
     """
-    neighbor_candidates = [node1, node2]
+    neighbor_candidates = []
+    for x in range(len(step.hashes)):
+        neighbor_candidates.append(step.hashes[x]['nodes'])
+
     neighbor_info = {}
 
     for node in neighbor_candidates:
-        host = world.machine['nodes'][node]['podip']
-        port = world.machine['nodes'][node]['clusterip_ports']['gossip-udp']
         api = api_utils.prepare_api_call(node)
         response = api.get_neighbors()
         neighbor_info[node] = {
             'api': api,
             'node_neighbors': list(response['neighbors']),
-            'address': str(host) + ":" + str(port)
+            'address': value_fetch.fetch_node_address(node)[0]
         }
 
-    logger.info('Checking neighbors for {}'.format(node1))
-    neighbors.check_if_neighbors(neighbor_info[node1]['api'],
-                                 neighbor_info[node1]['node_neighbors'], neighbor_info[node2]['address'])
-
-    logger.info('Checking neighbors for {}'.format(node2))
-    neighbors.check_if_neighbors(neighbor_info[node2]['api'],
-                                 neighbor_info[node2]['node_neighbors'], neighbor_info[node1]['address'])
+    neighbors.check_if_neighbors(neighbor_info)
 
 
 
