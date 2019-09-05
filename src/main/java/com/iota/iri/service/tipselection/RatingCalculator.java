@@ -1,6 +1,6 @@
 package com.iota.iri.service.tipselection;
 
-import java.util.Map;
+import java.util.List;
 
 import com.iota.iri.model.Hash;
 
@@ -22,5 +22,5 @@ public interface RatingCalculator {
      * @throws Exception If DB fails to retrieve transactions
      */
 
-    Map<Hash, Integer> calculate(Hash entryPoint) throws Exception;
+    List<Hash> calculate(Hash entryPoint) throws Exception;
 }

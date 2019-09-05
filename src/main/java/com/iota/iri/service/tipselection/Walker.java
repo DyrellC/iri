@@ -1,6 +1,6 @@
 package com.iota.iri.service.tipselection;
 
-import java.util.Map;
+import java.util.List;
 
 import com.iota.iri.model.Hash;
 
@@ -24,6 +24,6 @@ public interface Walker {
      * @return  Transaction hash of tip.
      * @throws Exception If DB fails to retrieve transactions
      */
-    Hash walk(Hash entryPoint, Map<Hash, Integer> ratings, WalkValidator walkValidator) throws Exception;
+    Hash walk(Hash entryPoint, List<Hash> ratings, WalkValidator walkValidator) throws Exception;
 
 }

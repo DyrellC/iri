@@ -1,7 +1,6 @@
 package com.iota.iri.service.tipselection.impl;
 
-import java.util.Deque;
-import java.util.LinkedList;
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +37,7 @@ public class WalkerAlpha implements Walker {
     private final Logger log = LoggerFactory.getLogger(Walker.class);
 
     private final TailFinder tailFinder;
+    private final SecureRandom seed = new SecureRandom();
 
     /**
      * Constructor for Walker Alpha.
@@ -69,28 +69,13 @@ public class WalkerAlpha implements Walker {
     }
 
     @Override
-    public Hash walk(Hash entryPoint, Map<Hash, Integer> ratings, WalkValidator walkValidator) throws Exception {
+    public Hash walk(Hash entryPoint, List<Hash> ratings, WalkValidator walkValidator) throws Exception {
         if (!walkValidator.isValid(entryPoint)) {
             throw new IllegalStateException("entry point failed consistency check: " + entryPoint.toString());
         }
 
-        Optional<Hash> nextStep;
-        Deque<Hash> traversedTails = new LinkedList<>();
-        traversedTails.add(entryPoint);
-
-        //Walk
-        do {
-            if(Thread.interrupted()){
-                throw new InterruptedException();
-            }
-            nextStep = selectApprover(traversedTails.getLast(), ratings, walkValidator);
-            nextStep.ifPresent(traversedTails::add);
-         } while (nextStep.isPresent());
-
-        log.debug("{} tails traversed to find tip", traversedTails.size());
-        tangle.publish("mctn %d", traversedTails.size());
-
-        return traversedTails.getLast();
+        int index = seed.nextInt(ratings.size());
+        return ratings.get(index);
     }
 
     private Optional<Hash> selectApprover(Hash tailHash, Map<Hash, Integer> ratings, WalkValidator walkValidator) throws Exception {

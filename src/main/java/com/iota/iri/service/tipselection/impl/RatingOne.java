@@ -1,10 +1,6 @@
 package com.iota.iri.service.tipselection.impl;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 
 import com.iota.iri.controllers.ApproveeViewModel;
 import com.iota.iri.model.Hash;
@@ -24,27 +20,25 @@ public class RatingOne implements RatingCalculator {
     }
 
     @Override
-    public Map<Hash, Integer> calculate(Hash entryPoint) throws Exception {
-        Map<Hash, Integer> rating = new HashMap<>();
-
+    public List<Hash> calculate(Hash entryPoint) throws Exception {
         Queue<Hash> queue = new LinkedList<>();
+        Set<Hash> txsForward = new HashSet<>();
         queue.add(entryPoint);
-        rating.put(entryPoint, 1);
-
+        txsForward.add(entryPoint);
         Hash hash;
 
         //traverse all transactions that reference entryPoint
         while ((hash = queue.poll()) != null) {
             Set<Hash> approvers = ApproveeViewModel.load(tangle, hash).getHashes();
             for (Hash tx : approvers) {
-                if (!rating.containsKey(tx)) {
+                if (!txsForward.contains(tx)) {
                     //add to rating w/ value "1"
-                    rating.put(tx, 1);
+                    txsForward.add(tx);
                     queue.add(tx);
                 }
             }
         }
-        return rating;
+        return new ArrayList<>(txsForward);
     }
 
 

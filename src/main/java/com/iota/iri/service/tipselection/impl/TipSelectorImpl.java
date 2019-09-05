@@ -92,7 +92,8 @@ public class TipSelectorImpl implements TipSelector {
 
             //preparation
             Hash entryPoint = entryPointSelector.getEntryPoint(depth);
-            Map<Hash, Integer> rating = ratingCalculator.calculate(entryPoint);
+            List<Hash> rating = ratingCalculator.calculate(entryPoint);
+
 
             //random walk
             List<Hash> tips = new LinkedList<>();
@@ -120,9 +121,9 @@ public class TipSelectorImpl implements TipSelector {
         }
     }
 
-    private void checkReference(Hash reference, Map<Hash, Integer> rating)
+    private void checkReference(Hash reference, List<Hash> rating)
             throws InvalidAlgorithmParameterException {
-        if (!rating.containsKey(reference)) {
+        if (!rating.contains(reference)) {
             throw new InvalidAlgorithmParameterException(REFERENCE_TRANSACTION_TOO_OLD);
         }
     }

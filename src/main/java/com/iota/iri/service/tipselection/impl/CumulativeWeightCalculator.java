@@ -1,16 +1,8 @@
 package com.iota.iri.service.tipselection.impl;
 
-import java.util.ArrayDeque;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import com.iota.iri.controllers.ApproveeViewModel;
-import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.service.tipselection.RatingCalculator;
@@ -39,24 +31,19 @@ public class CumulativeWeightCalculator implements RatingCalculator {
     }
 
     @Override
-    public Map<Hash, Integer> calculate(Hash entryPoint) throws Exception {
-        Map<Hash, Integer> hashWeightMap = calculateRatingDfs(entryPoint);
+    public List<Hash> calculate(Hash entryPoint) throws Exception {
+        List<Hash> hashWeightMap = calculateRatingDfs(entryPoint);
         
         return hashWeightMap;
     }
     
-    private Map<Hash, Integer> calculateRatingDfs(Hash entryPoint) throws Exception {
-        TransactionViewModel tvm = TransactionViewModel.fromHash(tangle, entryPoint);
-        int depth = tvm.snapshotIndex() > 0 
-                ? snapshotProvider.getLatestSnapshot().getIndex() - tvm.snapshotIndex() + 1 
-                : 1;
-
-        // Estimated capacity per depth, assumes 5 minute gap in between milestones, at 3tps
-        Map<Hash, Integer> hashWeightMap = createTxHashToCumulativeWeightMap( 5 * 60 * 3 * depth);
-
+    private List<Hash> calculateRatingDfs(Hash entryPoint) throws Exception {
         Map<Hash, Set<Hash>> txToDirectApprovers = new HashMap<>();
-
         Deque<Hash> stack = new ArrayDeque<>();
+
+        //A set of tips that will be populated and returned for tip selection
+        Set<Hash> tipHashList = new HashSet<>();
+
         stack.addAll(getTxDirectApproversHashes(entryPoint, txToDirectApprovers));
 
         while (!stack.isEmpty()) {
@@ -66,30 +53,30 @@ public class CumulativeWeightCalculator implements RatingCalculator {
             
             // If its empty, its a tip!
             if (approvers.isEmpty()) {
-                hashWeightMap.put(txHash, 1);
+                tipHashList.add(txHash);
 
             // Else we go deeper
             } else {
                 // Add all approvers, given we didnt go there
                 for (Hash h : approvers) {
-                    if (!hashWeightMap.containsKey(h)) {
+                    if (!tipHashList.contains(h)) {
                         stack.add(h);
                     }
                 }
                 
-                // Add the tx to the approvers list to count itself as +1 weight, preventing self-referencing
+                // Add the tx to the approvers list to prevent self-referencing
                 approvers.add(txHash);
                 
                 // calculate and add rating. Naturally the first time all approvers need to be looked up. Then its cached.
-                hashWeightMap.put(txHash, getRating(approvers, txToDirectApprovers));
+                tipHashList.add(txHash);
             } 
         }
 
         // If we have a self-reference, its already added, otherwise we save a big calculation
-        if (!hashWeightMap.containsKey(entryPoint)) {
-            hashWeightMap.put(entryPoint, hashWeightMap.size() + 1);
+        if (!tipHashList.contains(entryPoint)) {
+            tipHashList.add(entryPoint);
         }
-        return hashWeightMap;
+        return new ArrayList<>(tipHashList);
     }
 
     /**
