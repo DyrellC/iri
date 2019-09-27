@@ -95,7 +95,9 @@ public class TipSelectorImpl implements TipSelector {
             Hash entryPoint = entryPointSelector.getEntryPoint(depth);
             Map<Hash, Integer> rating;
             if(config.getAlpha() == 0) {
-                rating = Collections.EMPTY_MAP;
+                RatingCalculator ratingOne = new RatingOne(tangle);
+                rating = ratingOne.calculate(entryPoint);
+
             } else {
                 rating = ratingCalculator.calculate(entryPoint);
             }
