@@ -1,5 +1,7 @@
 package com.iota.iri.conf;
 
+import com.iota.iri.network.pipeline.BroadcastQueue;
+
 import java.util.List;
 
 /**
@@ -89,7 +91,10 @@ public interface NetworkConfig extends Config {
      */
     int getCacheSizeBytes();
 
-    interface Descriptions {
+    BroadcastQueue getBroadcastQueue();
+
+
+        interface Descriptions {
         String NEIGHBORING_SOCKET_ADDRESS = "The address to bind the TCP server socket to.";
         String NEIGHBORING_SOCKET_PORT = "The TCP Receiver Port.";
         String RECONNECT_ATTEMPT_INTERVAL_SECONDS = "The interval at which to reconnect to wanted neighbors.";

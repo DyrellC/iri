@@ -9,7 +9,10 @@ import com.iota.iri.crypto.Sponge;
 import com.iota.iri.crypto.SpongeFactory;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.TransactionHash;
+import com.iota.iri.model.persistables.Transaction;
 import com.iota.iri.network.TransactionRequester;
+import com.iota.iri.network.pipeline.BroadcastQueue;
+import com.iota.iri.network.pipeline.ProcessingContext;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.storage.Tangle;
 import org.slf4j.Logger;
@@ -24,6 +27,7 @@ public class TransactionValidator {
     private static final Logger log = LoggerFactory.getLogger(TransactionValidator.class);
     private static final int  TESTNET_MWM_CAP = 13;
     public static final int SOLID_SLEEP_TIME = 500;
+    public static final int RESCAN_TIME = 750;
 
     private final Tangle tangle;
     private final SnapshotProvider snapshotProvider;
@@ -33,10 +37,13 @@ public class TransactionValidator {
     private static final long MAX_TIMESTAMP_FUTURE = 2L * 60L * 60L;
     private static final long MAX_TIMESTAMP_FUTURE_MS = MAX_TIMESTAMP_FUTURE * 1_000L;
 
+    private BroadcastQueue broadcastQueue;
+
 
     /////////////////////////////////fields for solidification thread//////////////////////////////////////
 
     private Thread newSolidThread;
+    private Thread solidifyRetryThread;
 
     /**
      * If true use {@link #newSolidTransactionsOne} while solidifying. Else use {@link #newSolidTransactionsTwo}.
@@ -52,6 +59,8 @@ public class TransactionValidator {
     private final Object cascadeSync = new Object();
     private final Set<Hash> newSolidTransactionsOne = new LinkedHashSet<>();
     private final Set<Hash> newSolidTransactionsTwo = new LinkedHashSet<>();
+
+    private final Set<Hash> retryTransactions = new LinkedHashSet<>();
 
     /**
      * Constructor for Tangle Validator
@@ -72,6 +81,7 @@ public class TransactionValidator {
         this.transactionRequester = transactionRequester;
         this.newSolidThread = new Thread(spawnSolidTransactionsPropagation(), "Solid TX cascader");
         setMwm(protocolConfig.isTestnet(), protocolConfig.getMwm());
+        this.solidifyRetryThread = new Thread(spawnSolidifyRetry(), "Transaction Solidifier rescan");
     }
 
     /**
@@ -85,7 +95,8 @@ public class TransactionValidator {
      *
      * @see #spawnSolidTransactionsPropagation()
      */
-    public void init() {
+    public void init(BroadcastQueue broadcastQueue) {
+        this.broadcastQueue = broadcastQueue;
         newSolidThread.start();
     }
 
@@ -277,7 +288,7 @@ public class TransactionValidator {
             }
         }
         if (solid) {
-            updateSolidTransactions(tangle, snapshotProvider.getInitialSnapshot(), analyzedHashes);
+            updateSolidTransactions(tangle, snapshotProvider.getInitialSnapshot(), analyzedHashes, broadcastQueue);
         }
         analyzedHashes.clear();
         return solid;
@@ -309,6 +320,39 @@ public class TransactionValidator {
                 }
             }
         };
+    }
+
+    private Runnable spawnSolidifyRetry() {
+        return () -> {
+            while(!shuttingDown.get()) {
+                rescan();
+                try {
+                    Thread.sleep(RESCAN_TIME);
+                } catch (InterruptedException e) {
+                    // Ignoring InterruptedException. Do not use Thread.currentThread().interrupt() here.
+                    log.error("Thread was interrupted: ", e);
+                }
+            }
+        };
+    }
+
+
+    void rescan() {
+        for(Hash hash : retryTransactions) {
+            try {
+                TransactionViewModel transactionViewModel = TransactionViewModel.fromHash(tangle, hash);
+
+                if (quickSetSolid(transactionViewModel)) {
+                    transactionViewModel.update(tangle, snapshotProvider.getInitialSnapshot(), "solid|height");
+                    tipsViewModel.setSolid(transactionViewModel.getHash());
+                    addSolidTransaction(transactionViewModel.getHash());
+                }
+            } catch (Exception e ){
+                //////
+                log.info("Error retrying transaction solidification " + e.getMessage());
+            }
+        }
+
     }
 
     /**
@@ -425,6 +469,8 @@ public class TransactionValidator {
                 transactionViewModel.updateSolid(true);
                 transactionViewModel.updateHeights(tangle, snapshotProvider.getInitialSnapshot());
                 return true;
+            } else {
+                retryTransactions.add(transactionViewModel.getHash());
             }
         }
         return false;

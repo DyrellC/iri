@@ -7,11 +7,14 @@ import com.iota.iri.TransactionValidator;
 import com.iota.iri.conf.IotaConfig;
 import com.iota.iri.controllers.TipsViewModel;
 import com.iota.iri.network.impl.TipsRequesterImpl;
+import com.iota.iri.network.pipeline.BroadcastQueue;
 import com.iota.iri.network.pipeline.TransactionProcessingPipeline;
 import com.iota.iri.network.pipeline.TransactionProcessingPipelineImpl;
 import com.iota.iri.service.milestone.LatestMilestoneTracker;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.storage.Tangle;
+
+import java.util.concurrent.BlockingQueue;
 
 /**
  * Guice module for network package. Configuration class for dependency injection.
@@ -48,7 +51,7 @@ public class NetworkInjectionConfiguration extends AbstractModule {
             TipsViewModel tipsViewModel, LatestMilestoneTracker latestMilestoneTracker,
             TransactionRequester transactionRequester) {
         return new TransactionProcessingPipelineImpl(neighborRouter, configuration, txValidator, tangle,
-                snapshotProvider, tipsViewModel, latestMilestoneTracker, transactionRequester);
+                snapshotProvider, tipsViewModel, latestMilestoneTracker, transactionRequester, configuration.getBroadcastQueue());
     }
 
     @Singleton

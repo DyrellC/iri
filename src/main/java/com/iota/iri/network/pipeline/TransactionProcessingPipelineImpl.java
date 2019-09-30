@@ -66,8 +66,9 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
     private BlockingQueue<ProcessingContext> preProcessStageQueue = new ArrayBlockingQueue<>(100);
     private BlockingQueue<ProcessingContext> validationStageQueue = new ArrayBlockingQueue<>(100);
     private BlockingQueue<ProcessingContext> receivedStageQueue = new ArrayBlockingQueue<>(100);
-    private BlockingQueue<ProcessingContext> broadcastStageQueue = new ArrayBlockingQueue<>(100);
     private BlockingQueue<ProcessingContext> replyStageQueue = new ArrayBlockingQueue<>(100);
+    private BroadcastQueue broadcastStageQueue;
+
 
     /**
      * Creates a {@link TransactionProcessingPipeline}.
@@ -84,7 +85,7 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
     public TransactionProcessingPipelineImpl(NeighborRouter neighborRouter, NodeConfig config,
             TransactionValidator txValidator, Tangle tangle, SnapshotProvider snapshotProvider,
             TipsViewModel tipsViewModel, LatestMilestoneTracker latestMilestoneTracker,
-            TransactionRequester transactionRequester) {
+            TransactionRequester transactionRequester, BroadcastQueue broadcastQueue) {
         FIFOCache<Long, Hash> recentlySeenBytesCache = new FIFOCache<>(config.getCacheSizeBytes());
         this.preProcessStage = new PreProcessStage(recentlySeenBytesCache);
         this.replyStage = new ReplyStage(neighborRouter, config, tangle, tipsViewModel, latestMilestoneTracker,
@@ -94,6 +95,7 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
         this.receivedStage = new ReceivedStage(tangle, txValidator, snapshotProvider, transactionRequester);
         this.batchedHasher = BatchedHasherFactory.create(BatchedHasherFactory.Type.BCTCURL81, 20);
         this.hashingStage = new HashingStage(batchedHasher);
+        this.broadcastStageQueue = broadcastQueue;
     }
 
     @Override
@@ -103,7 +105,7 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
         addStage("validation", validationStageQueue, validationStage);
         addStage("reply", replyStageQueue, replyStage);
         addStage("received", receivedStageQueue, receivedStage);
-        addStage("broadcast", broadcastStageQueue, broadcastStage);
+        addStage("broadcast", broadcastStageQueue.get(), broadcastStage);
     }
 
     /**
@@ -118,7 +120,13 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
         stagesThreadPool.submit(new Thread(() -> {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
-                    ProcessingContext ctx = stage.process(queue.take());
+                    ProcessingContext queueTake;
+                    if(name.equals("broadcast")) {
+                        queueTake = broadcastStageQueue.get().take();
+                    } else{
+                        queueTake = queue.take();
+                    }
+                    ProcessingContext ctx = stage.process(queueTake);
                     switch (ctx.getNextStage()) {
                         case REPLY:
                             replyStageQueue.put(ctx);
@@ -135,7 +143,10 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
                             receivedStageQueue.put(payload.getRight());
                             break;
                         case BROADCAST:
-                            broadcastStageQueue.put(ctx);
+                            Boolean added = broadcastStageQueue.add(ctx);
+                            if(!added){
+                                log.info("Not Added at all");
+                            }
                             break;
                         case ABORT:
                             break;
@@ -160,7 +171,7 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
 
     @Override
     public BlockingQueue<ProcessingContext> getBroadcastStageQueue() {
-        return broadcastStageQueue;
+        return broadcastStageQueue.get();
     }
 
     @Override
@@ -247,5 +258,9 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
     @Override
     public void setHashingStage(HashingStage hashingStage) {
         this.hashingStage = hashingStage;
+    }
+
+    public void configureBroadcastQueue(BroadcastQueue broadcastQueue){
+        this.broadcastStageQueue = broadcastQueue;
     }
 }
