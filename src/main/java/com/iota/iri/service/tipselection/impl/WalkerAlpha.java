@@ -158,6 +158,13 @@ public class WalkerAlpha implements Walker {
             }
         } else {
             approvers = approversSet.stream().filter(ratings::containsKey).collect(Collectors.toList());
+            //List <Hash> otherApprovers = approversSet.stream().filter(ratings::containsKey).collect(Collectors.toList());
+
+            //if(approvers.size() != otherApprovers.size()){
+                //log.info("Sizes don't match: " + approvers.size() + " | " + otherApprovers.size());
+            //}
+
+
             if (approvers.size() == 0) {
                 return Optional.empty();
             }
