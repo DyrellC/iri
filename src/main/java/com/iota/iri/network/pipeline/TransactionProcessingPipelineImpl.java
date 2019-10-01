@@ -260,7 +260,4 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
         this.hashingStage = hashingStage;
     }
 
-    public void configureBroadcastQueue(BroadcastQueue broadcastQueue){
-        this.broadcastStageQueue = broadcastQueue;
-    }
 }

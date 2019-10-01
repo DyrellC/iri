@@ -57,6 +57,8 @@ public class TransactionValidator {
      * mutex for solidification
      */
     private final Object cascadeSync = new Object();
+    private final Object retrySync = new Object();
+
     private final Set<Hash> newSolidTransactionsOne = new LinkedHashSet<>();
     private final Set<Hash> newSolidTransactionsTwo = new LinkedHashSet<>();
 
@@ -98,6 +100,7 @@ public class TransactionValidator {
     public void init(BroadcastQueue broadcastQueue) {
         this.broadcastQueue = broadcastQueue;
         newSolidThread.start();
+        solidifyRetryThread.start();
     }
 
     @VisibleForTesting
@@ -118,6 +121,7 @@ public class TransactionValidator {
     public void shutdown() throws InterruptedException {
         shuttingDown.set(true);
         newSolidThread.join();
+        solidifyRetryThread.join();
     }
 
     /**
@@ -338,18 +342,22 @@ public class TransactionValidator {
 
 
     void rescan() {
-        for(Hash hash : retryTransactions) {
-            try {
-                TransactionViewModel transactionViewModel = TransactionViewModel.fromHash(tangle, hash);
+        if(!shuttingDown.get()){
+            synchronized(retrySync) {
+                for(Hash hash : retryTransactions){
+                    try {
+                        TransactionViewModel transactionViewModel = TransactionViewModel.fromHash(tangle, hash);
 
-                if (quickSetSolid(transactionViewModel)) {
-                    transactionViewModel.update(tangle, snapshotProvider.getInitialSnapshot(), "solid|height");
-                    tipsViewModel.setSolid(transactionViewModel.getHash());
-                    addSolidTransaction(transactionViewModel.getHash());
+                        if (quickSetSolid(transactionViewModel)) {
+                            transactionViewModel.update(tangle, snapshotProvider.getInitialSnapshot(), "solid|height");
+                            tipsViewModel.setSolid(transactionViewModel.getHash());
+                            addSolidTransaction(transactionViewModel.getHash());
+                        }
+                    } catch (Exception e) {
+                        //////
+                        log.error("Error retrying transaction solidification ", e);
+                    }
                 }
-            } catch (Exception e ){
-                //////
-                log.info("Error retrying transaction solidification " + e.getMessage());
             }
         }
 
@@ -470,7 +478,9 @@ public class TransactionValidator {
                 transactionViewModel.updateHeights(tangle, snapshotProvider.getInitialSnapshot());
                 return true;
             } else {
-                retryTransactions.add(transactionViewModel.getHash());
+                synchronized (retrySync) {
+                    retryTransactions.add(transactionViewModel.getHash());
+                }
             }
         }
         return false;
