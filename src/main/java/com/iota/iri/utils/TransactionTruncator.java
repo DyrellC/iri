@@ -1,6 +1,7 @@
 package com.iota.iri.utils;
 
 import com.iota.iri.model.persistables.Transaction;
+import com.iota.iri.network.protocol.Protocol;
 
 /**
  * Provides utility methods to truncate and expand raw transaction data.
@@ -51,8 +52,12 @@ public class TransactionTruncator {
         byte[] txDataBytes = new byte[Transaction.SIZE];
         int numOfBytesOfSigMsgFragToExpand = referenceSize - data.length;
         byte[] sigMsgFragPadding = new byte[numOfBytesOfSigMsgFragToExpand];
-        int sigMsgFragBytesToCopy = data.length - TransactionTruncator.NON_SIG_TX_PART_BYTES_LENGTH;
-
+        int sigMsgFragBytesToCopy;
+        if(referenceSize == Transaction.SIZE) {
+            sigMsgFragBytesToCopy = data.length - TransactionTruncator.NON_SIG_TX_PART_BYTES_LENGTH;
+        } else {
+            sigMsgFragBytesToCopy = data.length - Protocol.GOSSIP_REQUESTED_TX_HASH_BYTES_LENGTH - TransactionTruncator.NON_SIG_TX_PART_BYTES_LENGTH;
+        }
         // build up transaction payload. empty signature message fragment equals padding with 1312x 0 bytes
         System.arraycopy(data, 0, txDataBytes, 0, sigMsgFragBytesToCopy);
         System.arraycopy(sigMsgFragPadding, 0, txDataBytes, sigMsgFragBytesToCopy, sigMsgFragPadding.length);
