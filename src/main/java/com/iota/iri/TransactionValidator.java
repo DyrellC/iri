@@ -57,6 +57,7 @@ public class TransactionValidator {
      * mutex for solidification
      */
     private final Object cascadeSync = new Object();
+    private final Object retrySync = new Object();
     private final Set<Hash> newSolidTransactionsOne = new LinkedHashSet<>();
     private final Set<Hash> newSolidTransactionsTwo = new LinkedHashSet<>();
 
@@ -98,6 +99,7 @@ public class TransactionValidator {
     public void init(BroadcastQueue broadcastQueue) {
         this.broadcastQueue = broadcastQueue;
         newSolidThread.start();
+        solidifyRetryThread.start();
     }
 
     @VisibleForTesting
@@ -118,6 +120,7 @@ public class TransactionValidator {
     public void shutdown() throws InterruptedException {
         shuttingDown.set(true);
         newSolidThread.join();
+        solidifyRetryThread.join();
     }
 
     /**
@@ -338,19 +341,35 @@ public class TransactionValidator {
 
 
     void rescan() {
-        for(Hash hash : retryTransactions) {
-            try {
-                TransactionViewModel transactionViewModel = TransactionViewModel.fromHash(tangle, hash);
+        Set<Hash> hashesToSolidify = new LinkedHashSet<>();
+        synchronized (retrySync){
+            hashesToSolidify.addAll(retryTransactions);
+        }
 
-                if (quickSetSolid(transactionViewModel)) {
-                    transactionViewModel.update(tangle, snapshotProvider.getInitialSnapshot(), "solid|height");
-                    tipsViewModel.setSolid(transactionViewModel.getHash());
-                    addSolidTransaction(transactionViewModel.getHash());
+        Iterator<Hash> hashIterator = hashesToSolidify.iterator();
+        while(!shuttingDown.get() && hashIterator.hasNext()) {
+            try {
+                Hash hash = hashIterator.next();
+
+                    /*TransactionViewModel transactionHash = TransactionViewModel.fromHash(tangle, hash);
+                      Set<Hash> approvers = transactionViewModel.getApprovers(tangle).getHashes();
+
+                    for (Hash h : approvers) {
+                        TransactionViewModel approverTransaction = TransactionViewModel.fromHash(tangle, h);
+                        if (quickSetSolid(approverTransaction)) {
+                            approverTransaction.update(tangle, snapshotProvider.getInitialSnapshot(), "solid|height");
+                            tipsViewModel.setSolid(approverTransaction.getHash());
+                            retryTransactions.add(approverTransaction.getHash());
+                        }
+                    }*/
+                    if(checkSolidity(hash)) {
+                        retryTransactions.remove(hash);
+                    }
+                } catch (Exception e) {
+                    //////
+                    log.info("Error retrying transaction solidification " + e.getMessage());
                 }
-            } catch (Exception e ){
-                //////
-                log.info("Error retrying transaction solidification " + e.getMessage());
-            }
+
         }
 
     }
@@ -470,7 +489,7 @@ public class TransactionValidator {
                 transactionViewModel.updateHeights(tangle, snapshotProvider.getInitialSnapshot());
                 return true;
             } else {
-                retryTransactions.add(transactionViewModel.getHash());
+                    retryTransactions.add(transactionViewModel.getHash());
             }
         }
         return false;
