@@ -350,25 +350,13 @@ public class TransactionValidator {
         while(!shuttingDown.get() && hashIterator.hasNext()) {
             try {
                 Hash hash = hashIterator.next();
-
-                    /*TransactionViewModel transactionHash = TransactionViewModel.fromHash(tangle, hash);
-                      Set<Hash> approvers = transactionViewModel.getApprovers(tangle).getHashes();
-
-                    for (Hash h : approvers) {
-                        TransactionViewModel approverTransaction = TransactionViewModel.fromHash(tangle, h);
-                        if (quickSetSolid(approverTransaction)) {
-                            approverTransaction.update(tangle, snapshotProvider.getInitialSnapshot(), "solid|height");
-                            tipsViewModel.setSolid(approverTransaction.getHash());
-                            retryTransactions.add(approverTransaction.getHash());
-                        }
-                    }*/
-                    if(checkSolidity(hash)) {
-                        retryTransactions.remove(hash);
-                    }
-                } catch (Exception e) {
-                    //////
-                    log.info("Error retrying transaction solidification " + e.getMessage());
+                if(checkSolidity(hash)) {
+                    retryTransactions.remove(hash);
                 }
+
+            } catch (Exception e) {
+                log.info("Error retrying transaction solidification " + e.getMessage());
+            }
 
         }
 
