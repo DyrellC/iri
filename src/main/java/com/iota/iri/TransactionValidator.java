@@ -8,6 +8,7 @@ import com.iota.iri.crypto.SpongeFactory;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.TransactionHash;
 import com.iota.iri.network.TransactionRequester;
+import com.iota.iri.service.TransactionSolidifier;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.storage.Tangle;
 import org.slf4j.Logger;
@@ -27,6 +28,7 @@ public class TransactionValidator {
     private final SnapshotProvider snapshotProvider;
     private final TipsViewModel tipsViewModel;
     private final TransactionRequester transactionRequester;
+    private final TransactionSolidifier transactionSolidifier;
     private int minWeightMagnitude = 81;
     private static final long MAX_TIMESTAMP_FUTURE = 2L * 60L * 60L;
     private static final long MAX_TIMESTAMP_FUTURE_MS = MAX_TIMESTAMP_FUTURE * 1_000L;
@@ -34,16 +36,6 @@ public class TransactionValidator {
 
     /////////////////////////////////fields for solidification thread//////////////////////////////////////
 
-    private Thread newSolidThread;
-
-    /**
-     * If true use {@link #newSolidTransactionsOne} while solidifying. Else use {@link #newSolidTransactionsTwo}.
-     */
-    private final AtomicBoolean useFirst = new AtomicBoolean(true);
-    /**
-     * Is {@link #newSolidThread} shutting down
-     */
-    private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
     /**
      * mutex for solidification
      */
@@ -59,11 +51,13 @@ public class TransactionValidator {
      * @param tipsViewModel container that gets updated with the latest tips (transactions with no children)
      * @param transactionRequester used to request missing transactions from neighbors
      */
-    TransactionValidator(Tangle tangle, SnapshotProvider snapshotProvider, TipsViewModel tipsViewModel, TransactionRequester transactionRequester) {
+    TransactionValidator(Tangle tangle, SnapshotProvider snapshotProvider, TipsViewModel tipsViewModel,
+                         TransactionRequester transactionRequester, TransactionSolidifier transactionSolidifier) {
         this.tangle = tangle;
         this.snapshotProvider = snapshotProvider;
         this.tipsViewModel = tipsViewModel;
         this.transactionRequester = transactionRequester;
+        this.transactionSolidifier = transactionSolidifier;
     }
 
     /**
@@ -75,7 +69,7 @@ public class TransactionValidator {
      * </ol>
      *
      *
-     * @see #spawnSolidTransactionsPropagation()
+     * //@see #spawnSolidTransactionsPropagation()
      * @param testnet <tt>true</tt> if we are in testnet mode, this caps {@code mwm} to {@value #TESTNET_MWM_CAP}
      *                regardless of parameter input.
      * @param mwm minimum weight magnitude: the minimal number of 9s that ought to appear at the end of the transaction
@@ -83,9 +77,6 @@ public class TransactionValidator {
      */
     public void init(boolean testnet, int mwm) {
         setMwm(testnet, mwm);
-
-        newSolidThread = new Thread(spawnSolidTransactionsPropagation(), "Solid TX cascader");
-        newSolidThread.start();
     }
 
     //Package Private For Testing
@@ -98,15 +89,7 @@ public class TransactionValidator {
         }
     }
 
-    /**
-     * Shutdown roots to tip solidification thread
-     * @throws InterruptedException
-     * @see #spawnSolidTransactionsPropagation()
-     */
-    public void shutdown() throws InterruptedException {
-        shuttingDown.set(true);
-        newSolidThread.join();
-    }
+
 
     /**
      * @return the minimal number of trailing 9s that have to be present at the end of the transaction hash
@@ -247,34 +230,7 @@ public class TransactionValidator {
             return true;
         }
         Set<Hash> analyzedHashes = new HashSet<>(snapshotProvider.getInitialSnapshot().getSolidEntryPoints().keySet());
-        if(maxProcessedTransactions != Integer.MAX_VALUE) {
-            maxProcessedTransactions += analyzedHashes.size();
-        }
-        boolean solid = true;
-        final Queue<Hash> nonAnalyzedTransactions = new LinkedList<>(Collections.singleton(hash));
-        Hash hashPointer;
-        while ((hashPointer = nonAnalyzedTransactions.poll()) != null) {
-            if (analyzedHashes.add(hashPointer)) {
-                if(analyzedHashes.size() >= maxProcessedTransactions) {
-                    return false;
-                }
-
-                final TransactionViewModel transaction = fromHash(tangle, hashPointer);
-                if(!transaction.isSolid() && !snapshotProvider.getInitialSnapshot().hasSolidEntryPoint(hashPointer)) {
-                    if (transaction.getType() == PREFILLED_SLOT) {
-                        solid = false;
-
-                        if (!transactionRequester.isTransactionRequested(hashPointer, milestone)) {
-                            transactionRequester.requestTransaction(hashPointer, milestone);
-                            break;
-                        }
-                    } else {
-                        nonAnalyzedTransactions.offer(transaction.getTrunkTransactionHash());
-                        nonAnalyzedTransactions.offer(transaction.getBranchTransactionHash());
-                    }
-                }
-            }
-        }
+        boolean solid = transactionSolidifier.cascadeSolidCheck(hash, analyzedHashes, milestone, maxProcessedTransactions);
         if (solid) {
             updateSolidTransactions(tangle, snapshotProvider.getInitialSnapshot(), analyzedHashes);
         }
@@ -282,73 +238,10 @@ public class TransactionValidator {
         return solid;
     }
 
-    public void addSolidTransaction(Hash hash) {
-        synchronized (cascadeSync) {
-            if (useFirst.get()) {
-                newSolidTransactionsOne.add(hash);
-            } else {
-                newSolidTransactionsTwo.add(hash);
-            }
-        }
-    }
 
-    /**
-     * Creates a runnable that runs {@link #propagateSolidTransactions()} in a loop every {@value #SOLID_SLEEP_TIME} ms
-     * @return runnable that is not started
-     */
-    private Runnable spawnSolidTransactionsPropagation() {
-        return () -> {
-            while(!shuttingDown.get()) {
-                propagateSolidTransactions();
-                try {
-                    Thread.sleep(SOLID_SLEEP_TIME);
-                } catch (InterruptedException e) {
-                    // Ignoring InterruptedException. Do not use Thread.currentThread().interrupt() here.
-                    log.error("Thread was interrupted: ", e);
-                }
-            }
-        };
-    }
 
-    /**
-     * Iterates over all currently known solid transactions. For each solid transaction, we find
-     * its children (approvers) and try to quickly solidify them with {@link #quietQuickSetSolid}.
-     * If we manage to solidify the transactions, we add them to the solidification queue for a traversal by a later run.
-     */
-    //Package private for testing
-    void propagateSolidTransactions() {
-        Set<Hash> newSolidHashes = new HashSet<>();
-        useFirst.set(!useFirst.get());
-        //synchronized to make sure no one is changing the newSolidTransactions collections during addAll
-        synchronized (cascadeSync) {
-            //We are using a collection that doesn't get updated by other threads
-            if (useFirst.get()) {
-                newSolidHashes.addAll(newSolidTransactionsTwo);
-                newSolidTransactionsTwo.clear();
-            } else {
-                newSolidHashes.addAll(newSolidTransactionsOne);
-                newSolidTransactionsOne.clear();
-            }
-        }
-        Iterator<Hash> cascadeIterator = newSolidHashes.iterator();
-        while(cascadeIterator.hasNext() && !shuttingDown.get()) {
-            try {
-                Hash hash = cascadeIterator.next();
-                TransactionViewModel transaction = fromHash(tangle, hash);
-                Set<Hash> approvers = transaction.getApprovers(tangle).getHashes();
-                for(Hash h: approvers) {
-                    TransactionViewModel tx = fromHash(tangle, h);
-                    if(quietQuickSetSolid(tx)) {
-                        tx.update(tangle, snapshotProvider.getInitialSnapshot(), "solid|height");
-                        tipsViewModel.setSolid(h);
-                        addSolidTransaction(h);
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Error while propagating solidity upwards", e);
-            }
-        }
-    }
+
+
 
 
     /**
@@ -383,70 +276,12 @@ public class TransactionValidator {
         tipsViewModel.removeTipHash(transactionViewModel.getTrunkTransactionHash());
         tipsViewModel.removeTipHash(transactionViewModel.getBranchTransactionHash());
 
-        if(quickSetSolid(transactionViewModel)) {
-            transactionViewModel.update(tangle, snapshotProvider.getInitialSnapshot(), "solid|height");
-            tipsViewModel.setSolid(transactionViewModel.getHash());
-            addSolidTransaction(transactionViewModel.getHash());
-        }
+        transactionSolidifier.updateTransactionStatus(transactionViewModel);
     }
 
-    /**
-     * Perform a {@link #quickSetSolid} while capturing and logging errors
-     * @param transactionViewModel transaction we try to solidify.
-     * @return <tt>true</tt> if we managed to solidify, else <tt>false</tt>.
-     */
-    private boolean quietQuickSetSolid(TransactionViewModel transactionViewModel) {
-        try {
-            return quickSetSolid(transactionViewModel);
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
-            return false;
-        }
-    }
 
-    /**
-     * Tries to solidify the transactions quickly by performing {@link #checkApproovee} on both parents (trunk and
-     * branch). If the parents are solid, mark the transactions as solid.
-     * @param transactionViewModel transaction to solidify
-     * @return <tt>true</tt> if we made the transaction solid, else <tt>false</tt>.
-     * @throws Exception
-     */
-    private boolean quickSetSolid(final TransactionViewModel transactionViewModel) throws Exception {
-        if(!transactionViewModel.isSolid()) {
-            boolean solid = true;
-            if (!checkApproovee(transactionViewModel.getTrunkTransaction(tangle))) {
-                solid = false;
-            }
-            if (!checkApproovee(transactionViewModel.getBranchTransaction(tangle))) {
-                solid = false;
-            }
-            if(solid) {
-                transactionViewModel.updateSolid(true);
-                transactionViewModel.updateHeights(tangle, snapshotProvider.getInitialSnapshot());
-                return true;
-            }
-        }
-        return false;
-    }
 
-    /**
-     * If the the {@code approvee} is missing, request it from a neighbor.
-     * @param approovee transaction we check.
-     * @return true if {@code approvee} is solid.
-     * @throws Exception if we encounter an error while requesting a transaction
-     */
-    private boolean checkApproovee(TransactionViewModel approovee) throws Exception {
-        if(snapshotProvider.getInitialSnapshot().hasSolidEntryPoint(approovee.getHash())) {
-            return true;
-        }
-        if(approovee.getType() == PREFILLED_SLOT) {
-            // don't solidify from the bottom until cuckoo filters can identify where we deleted -> otherwise we will
-            // continue requesting old transactions forever
-            //transactionRequester.requestTransaction(approovee.getHash(), false);
-            return false;
-        }
-        return approovee.isSolid();
-    }
+
 
     //Package Private For Testing
     boolean isNewSolidTxSetsEmpty () {

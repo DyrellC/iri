@@ -10,6 +10,7 @@ import com.iota.iri.network.UDPReceiver;
 import com.iota.iri.network.impl.TransactionRequesterWorkerImpl;
 import com.iota.iri.network.replicator.Replicator;
 import com.iota.iri.service.TipsSolidifier;
+import com.iota.iri.service.TransactionSolidifier;
 import com.iota.iri.service.ledger.impl.LedgerServiceImpl;
 import com.iota.iri.service.milestone.impl.*;
 import com.iota.iri.service.snapshot.SnapshotException;
@@ -95,6 +96,8 @@ public class Iota {
 
     public final TransactionRequesterWorkerImpl transactionRequesterWorker;
 
+    public final TransactionSolidifier transactionSolidifier;
+
     public final Tangle tangle;
     public final TransactionValidator transactionValidator;
     public final TipsSolidifier tipsSolidifier;
@@ -106,6 +109,7 @@ public class Iota {
     public final TipsViewModel tipsViewModel;
     public final MessageQ messageQ;
     public final TipSelector tipsSelector;
+
 
     /**
      * Initializes the latest snapshot and then creates all services needed to run an IOTA node.
@@ -141,7 +145,8 @@ public class Iota {
         messageQ = MessageQ.createWith(configuration);
         tipsViewModel = new TipsViewModel();
         transactionRequester = new TransactionRequester(tangle, snapshotProvider, messageQ);
-        transactionValidator = new TransactionValidator(tangle, snapshotProvider, tipsViewModel, transactionRequester);
+        transactionSolidifier = new TransactionSolidifier(tangle, snapshotProvider, transactionRequester, tipsViewModel);
+        transactionValidator = new TransactionValidator(tangle, snapshotProvider, tipsViewModel, transactionRequester, transactionSolidifier);
         node = new Node(tangle, snapshotProvider, transactionValidator, transactionRequester, tipsViewModel,
                 latestMilestoneTracker, messageQ, configuration);
         replicator = new Replicator(node, configuration);
@@ -175,6 +180,7 @@ public class Iota {
         }
 
         transactionValidator.init(configuration.isTestnet(), configuration.getMwm());
+        transactionSolidifier.init();
         tipsSolidifier.init();
         transactionRequester.init(configuration.getpRemoveRequest());
         udpReceiver.init();
@@ -268,7 +274,7 @@ public class Iota {
         node.shutdown();
         udpReceiver.shutdown();
         replicator.shutdown();
-        transactionValidator.shutdown();
+        transactionSolidifier.shutdown();
         tangle.shutdown();
         messageQ.shutdown();
 
