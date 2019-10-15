@@ -1,19 +1,28 @@
 package com.iota.iri.service.tipselection.impl;
 
-import com.iota.iri.TransactionTestUtils;
-import com.iota.iri.conf.MainnetConfig;
+import static com.iota.iri.TransactionTestUtils.getTransactionTrits;
+import static com.iota.iri.TransactionTestUtils.createBundleHead;
+import static com.iota.iri.TransactionTestUtils.createTransactionWithTrunkBundleHash;
+import static com.iota.iri.TransactionTestUtils.getTransactionHash;
+import static com.iota.iri.TransactionTestUtils.getTransactionTritsWithTrunkAndBranch;
+
 import com.iota.iri.controllers.TransactionViewModel;
-import com.iota.iri.controllers.TransactionViewModelTest;
 import com.iota.iri.model.Hash;
 import com.iota.iri.service.snapshot.SnapshotProvider;
-import com.iota.iri.service.snapshot.impl.SnapshotProviderImpl;
+import com.iota.iri.service.snapshot.impl.SnapshotMockUtils;
 import com.iota.iri.storage.Tangle;
 import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.Optional;
 
@@ -22,8 +31,13 @@ public class TailFinderImplTest {
     private static final TemporaryFolder dbFolder = new TemporaryFolder();
     private static final TemporaryFolder logFolder = new TemporaryFolder();
     private static Tangle tangle;
-    private static SnapshotProvider snapshotProvider;
     private TailFinderImpl tailFinder;
+
+    @Rule
+    public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock
+    private static SnapshotProvider snapshotProvider;
 
     public TailFinderImplTest() {
         tailFinder = new TailFinderImpl(tangle);
@@ -32,7 +46,6 @@ public class TailFinderImplTest {
     @AfterClass
     public static void tearDown() throws Exception {
         tangle.shutdown();
-        snapshotProvider.shutdown();
         dbFolder.delete();
         logFolder.delete();
     }
@@ -40,7 +53,6 @@ public class TailFinderImplTest {
     @BeforeClass
     public static void setUp() throws Exception {
         tangle = new Tangle();
-        snapshotProvider = new SnapshotProviderImpl().init(new MainnetConfig());
         dbFolder.create();
         logFolder.create();
         tangle.addPersistenceProvider( new RocksDBPersistenceProvider(
@@ -49,25 +61,30 @@ public class TailFinderImplTest {
         tangle.init();
     }
 
+    @Before
+    public void setUpEach() {
+        Mockito.when(snapshotProvider.getInitialSnapshot()).thenReturn(SnapshotMockUtils.createSnapshot());
+    }
+
     @Test
     public void findTailTest() throws Exception {
-        TransactionViewModel txa = new TransactionViewModel(TransactionViewModelTest.getRandomTransactionTrits(), TransactionViewModelTest.getRandomTransactionHash());
+        TransactionViewModel txa = new TransactionViewModel(getTransactionTrits(), getTransactionHash());
         txa.store(tangle, snapshotProvider.getInitialSnapshot());
 
-        TransactionViewModel tx2 = TransactionTestUtils.createBundleHead(2);
+        TransactionViewModel tx2 = createBundleHead(2);
         tx2.store(tangle, snapshotProvider.getInitialSnapshot());
 
-        TransactionViewModel tx1 = TransactionTestUtils.createTransactionWithTrunkBundleHash(tx2, txa.getHash());
+        TransactionViewModel tx1 = createTransactionWithTrunkBundleHash(tx2, txa.getHash());
         tx1.store(tangle, snapshotProvider.getInitialSnapshot());
 
-        TransactionViewModel tx0 = TransactionTestUtils.createTransactionWithTrunkBundleHash(tx1, txa.getHash());
+        TransactionViewModel tx0 = createTransactionWithTrunkBundleHash(tx1, txa.getHash());
         tx0.store(tangle, snapshotProvider.getInitialSnapshot());
 
         //negative index - make sure we stop at 0
-        TransactionViewModel txNeg = TransactionTestUtils.createTransactionWithTrunkBundleHash(tx0, txa.getHash());
+        TransactionViewModel txNeg = createTransactionWithTrunkBundleHash(tx0, txa.getHash());
         txNeg.store(tangle, snapshotProvider.getInitialSnapshot());
 
-        TransactionViewModel txLateTail = TransactionTestUtils.createTransactionWithTrunkBundleHash(tx1, txa.getHash());
+        TransactionViewModel txLateTail = createTransactionWithTrunkBundleHash(tx1, txa.getHash());
         txLateTail.store(tangle, snapshotProvider.getInitialSnapshot());
 
         Optional<Hash> tail = tailFinder.findTail(tx2.getHash());
@@ -78,19 +95,17 @@ public class TailFinderImplTest {
 
     @Test
     public void findMissingTailTest() throws Exception {
-        TransactionViewModel txa = new TransactionViewModel(TransactionViewModelTest.getRandomTransactionTrits(),
-                TransactionViewModelTest.getRandomTransactionHash());
+        TransactionViewModel txa = new TransactionViewModel(getTransactionTrits(), getTransactionHash());
         txa.store(tangle, snapshotProvider.getInitialSnapshot());
 
-        TransactionViewModel tx2 = TransactionTestUtils.createBundleHead(2);
+        TransactionViewModel tx2 = createBundleHead(2);
         tx2.store(tangle, snapshotProvider.getInitialSnapshot());
 
-        TransactionViewModel tx1 = TransactionTestUtils.createTransactionWithTrunkBundleHash(tx2, txa.getHash());
+        TransactionViewModel tx1 = createTransactionWithTrunkBundleHash(tx2, txa.getHash());
         tx1.store(tangle, snapshotProvider.getInitialSnapshot());
 
-        TransactionViewModel tx0 = new TransactionViewModel(TransactionViewModelTest
-                .getRandomTransactionWithTrunkAndBranch(tx1.getHash(), tx2.getHash()),
-                TransactionViewModelTest.getRandomTransactionHash());
+        TransactionViewModel tx0 = new TransactionViewModel(getTransactionTritsWithTrunkAndBranch(tx1.getHash(), tx2.getHash()),
+                getTransactionHash());
         tx0.store(tangle, snapshotProvider.getInitialSnapshot());
 
         Optional<Hash> tail = tailFinder.findTail(tx2.getHash());

@@ -1,10 +1,9 @@
 package com.iota.iri.controllers;
 
-import com.iota.iri.conf.MainnetConfig;
 import com.iota.iri.crypto.SpongeFactory;
 import com.iota.iri.model.TransactionHash;
-import com.iota.iri.service.snapshot.SnapshotProvider;
-import com.iota.iri.service.snapshot.impl.SnapshotProviderImpl;
+import com.iota.iri.service.snapshot.Snapshot;
+import com.iota.iri.service.snapshot.impl.SnapshotMockUtils;
 import com.iota.iri.storage.Tangle;
 import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
 import org.junit.After;
@@ -13,14 +12,13 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Created by paul on 5/2/17.
- */
+import static com.iota.iri.TransactionTestUtils.getTransactionTrits;
+
 public class BundleViewModelTest {
     private static final TemporaryFolder dbFolder = new TemporaryFolder();
     private static final TemporaryFolder logFolder = new TemporaryFolder();
     private static Tangle tangle = new Tangle();
-    private static SnapshotProvider snapshotProvider;
+    private static Snapshot snapshot;
 
     @Before
     public void setUp() throws Exception {
@@ -32,8 +30,7 @@ public class BundleViewModelTest {
                 Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY);
         tangle.addPersistenceProvider(rocksDBPersistenceProvider);
         tangle.init();
-        snapshotProvider = new SnapshotProviderImpl().init(new MainnetConfig());
-
+        snapshot = SnapshotMockUtils.createSnapshot();
     }
 
     @After
@@ -41,8 +38,6 @@ public class BundleViewModelTest {
         tangle.shutdown();
         dbFolder.delete();
         logFolder.delete();
-        snapshotProvider.shutdown();
-
     }
 
     @Test
@@ -72,9 +67,9 @@ public class BundleViewModelTest {
 
     @Test
     public void firstShouldFindTx() throws Exception {
-        byte[] trits = TransactionViewModelTest.getRandomTransactionTrits();
+        byte[] trits = getTransactionTrits();
         TransactionViewModel transactionViewModel = new TransactionViewModel(trits, TransactionHash.calculate(SpongeFactory.Mode.CURLP81, trits));
-        transactionViewModel.store(tangle, snapshotProvider.getInitialSnapshot());
+        transactionViewModel.store(tangle, snapshot);
 
         BundleViewModel result = BundleViewModel.first(tangle);
         Assert.assertTrue(result.getHashes().contains(transactionViewModel.getHash()));

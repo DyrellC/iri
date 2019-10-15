@@ -3,6 +3,8 @@ package com.iota.iri.conf;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+
+import com.iota.iri.model.HashFactory;
 import com.iota.iri.utils.IotaUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -17,8 +19,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -49,14 +54,14 @@ public class ConfigTest {
     Test that iterates over common configs. It also attempts to check different types of types (double, boolean, string)
     */
     @Test
-    public void testArgsParsingMainnet() {
+    public void testArgsParsingMainnet() throws UnknownHostException {
         String[] args = {
                 "-p", "14000",
-                "-u", "13000",
-                "-t", "27000",
+                "--neighboring-socket-port", "13000",
                 "-n", "udp://neighbor1 neighbor, tcp://neighbor2",
                 "--api-host", "1.1.1.1",
                 "--remote-limit-api", "call1 call2, call3",
+                "--remote-trusted-api-hosts", "192.168.0.55, 10.0.0.10",
                 "--max-find-transactions", "500",
                 "--max-requests-list", "1000",
                 "--max-get-trytes", "4000",
@@ -64,17 +69,17 @@ public class ConfigTest {
                 "--remote-auth", "2.2.2.2",
                 "--p-remove-request", "0.23",
                 "--send-limit", "1000",
-                "--max-peers", "10",
+                "--max-neighbors", "10",
                 "--dns-refresher", "false",
                 "--dns-resolution", "false",
                 "--ixi-dir", "/ixi",
                 "--db-path", "/db",
                 "--db-log-path", "/dblog",
-                "--zmq-enabled",
+                "--zmq-enabled", "true",
                 //we ignore this on mainnet
                 "--mwm", "4",
                 "--testnet-coordinator", "TTTTTTTTT",
-                "--test-no-coo-validation",
+                "--test-no-coo-validation", "true",
                 //this should be ignored everywhere
                 "--fake-config"
         };
@@ -83,24 +88,28 @@ public class ConfigTest {
 
         iotaConfig.parseConfigFromArgs(args);
         Assert.assertEquals("port value", 14000, iotaConfig.getPort());
-        Assert.assertEquals("udp port", 13000, iotaConfig.getUdpReceiverPort());
-        Assert.assertEquals("tcp port", 27000, iotaConfig.getTcpReceiverPort());
+        Assert.assertEquals("neighboring port", 13000, iotaConfig.getNeighboringSocketPort());
         Assert.assertEquals("neighbors", Arrays.asList("udp://neighbor1", "neighbor", "tcp://neighbor2"),
                 iotaConfig.getNeighbors());
         Assert.assertEquals("api host", "1.1.1.1", iotaConfig.getApiHost());
         Assert.assertEquals("remote limit api", Arrays.asList("call1", "call2", "call3"),
                 iotaConfig.getRemoteLimitApi());
+
+        List<InetAddress> expectedTrustedApiHosts = Arrays.asList(
+                InetAddress.getByName("192.168.0.55"),
+                InetAddress.getByName("10.0.0.10"),
+                InetAddress.getByName("127.0.0.1"));
+        Assert.assertEquals("remote trusted api hosts", expectedTrustedApiHosts, iotaConfig.getRemoteTrustedApiHosts());
+
         Assert.assertEquals("max find transactions", 500, iotaConfig.getMaxFindTransactions());
         Assert.assertEquals("max requests list", 1000, iotaConfig.getMaxRequestsList());
         Assert.assertEquals("max get trytes", 4000, iotaConfig.getMaxGetTrytes());
         Assert.assertEquals("max body length", 220, iotaConfig.getMaxBodyLength());
         Assert.assertEquals("remote-auth", "2.2.2.2", iotaConfig.getRemoteAuth());
-        Assert.assertEquals("p remove request", 0.23d, iotaConfig.getpRemoveRequest(), 0d);
         Assert.assertEquals("send limit", 1000, iotaConfig.getSendLimit());
-        Assert.assertEquals("max peers", 10, iotaConfig.getMaxPeers());
+        Assert.assertEquals("max neighbors", 10, iotaConfig.getMaxNeighbors());
         Assert.assertEquals("dns refresher", false, iotaConfig.isDnsRefresherEnabled());
         Assert.assertEquals("dns resolution", false, iotaConfig.isDnsResolutionEnabled());
-        Assert.assertEquals("tip solidification", true, iotaConfig.isTipSolidifierEnabled());
         Assert.assertEquals("ixi-dir", "/ixi", iotaConfig.getIxiDir());
         Assert.assertEquals("db path", "/db", iotaConfig.getDbPath());
         Assert.assertEquals("zmq enabled", true, iotaConfig.isZmqEnabled());
@@ -113,7 +122,7 @@ public class ConfigTest {
 
     @Test
     public void testRemoteFlag() {
-        String[] args = {"--remote"};
+        String[] args = {"--remote", "true"};
         IotaConfig iotaConfig = ConfigFactory.createIotaConfig(false);
         iotaConfig.parseConfigFromArgs(args);
         Assert.assertEquals("The api interface should be open to the public", "0.0.0.0", iotaConfig.getApiHost());
@@ -123,8 +132,7 @@ public class ConfigTest {
     public void testArgsParsingTestnet() {
         String[] args = {
                 "-p", "14000",
-                "-u", "13000",
-                "-t", "27000",
+                "--neighboring-socket-port", "13000",
                 "-n", "udp://neighbor1 neighbor, tcp://neighbor2",
                 "--api-host", "1.1.1.1",
                 "--remote-limit-api", "call1 call2, call3",
@@ -135,18 +143,17 @@ public class ConfigTest {
                 "--remote-auth", "2.2.2.2",
                 "--p-remove-request", "0.23",
                 "--send-limit", "1000",
-                "--max-peers", "10",
+                "--max-neighbors", "10",
                 "--dns-refresher", "false",
                 "--dns-resolution", "false",
-                "--tip-solidifier", "false",
                 "--ixi-dir", "/ixi",
                 "--db-path", "/db",
                 "--db-log-path", "/dblog",
-                "--zmq-enabled",
+                "--zmq-enabled", "true",
                 //we ignore this on mainnet
                 "--mwm", "4",
                 "--testnet-coordinator", "TTTTTTTTT",
-                "--testnet-no-coo-validation",
+                "--testnet-no-coo-validation", "true",
                 //this should be ignored everywhere
                 "--fake-config"
         };
@@ -155,8 +162,7 @@ public class ConfigTest {
 
         iotaConfig.parseConfigFromArgs(args);
         Assert.assertEquals("port value", 14000, iotaConfig.getPort());
-        Assert.assertEquals("udp port", 13000, iotaConfig.getUdpReceiverPort());
-        Assert.assertEquals("tcp port", 27000, iotaConfig.getTcpReceiverPort());
+        Assert.assertEquals("neighboring port", 13000, iotaConfig.getNeighboringSocketPort());
         Assert.assertEquals("neighbors", Arrays.asList("udp://neighbor1", "neighbor", "tcp://neighbor2"),
                 iotaConfig.getNeighbors());
         Assert.assertEquals("api host", "1.1.1.1", iotaConfig.getApiHost());
@@ -167,17 +173,15 @@ public class ConfigTest {
         Assert.assertEquals("max get trytes", 4000, iotaConfig.getMaxGetTrytes());
         Assert.assertEquals("max body length", 220, iotaConfig.getMaxBodyLength());
         Assert.assertEquals("remote-auth", "2.2.2.2", iotaConfig.getRemoteAuth());
-        Assert.assertEquals("p remove request", 0.23d, iotaConfig.getpRemoveRequest(), 0d);
         Assert.assertEquals("send limit", 1000, iotaConfig.getSendLimit());
-        Assert.assertEquals("max peers", 10, iotaConfig.getMaxPeers());
+        Assert.assertEquals("max neighbors", 10, iotaConfig.getMaxNeighbors());
         Assert.assertEquals("dns refresher", false, iotaConfig.isDnsRefresherEnabled());
         Assert.assertEquals("dns resolution", false, iotaConfig.isDnsResolutionEnabled());
-        Assert.assertEquals("tip solidification", false, iotaConfig.isTipSolidifierEnabled());
         Assert.assertEquals("ixi-dir", "/ixi", iotaConfig.getIxiDir());
         Assert.assertEquals("db path", "/db", iotaConfig.getDbPath());
         Assert.assertEquals("zmq enabled", true, iotaConfig.isZmqEnabled());
         Assert.assertEquals("mwm", 4, iotaConfig.getMwm());
-        Assert.assertEquals("coo", "TTTTTTTTT", iotaConfig.getCoordinator());
+        Assert.assertEquals("coo", HashFactory.ADDRESS.create("TTTTTTTTT"), iotaConfig.getCoordinator());
         Assert.assertEquals("--testnet-no-coo-validation", true,
                 iotaConfig.isDontValidateTestnetMilestoneSig());
     }
@@ -188,6 +192,7 @@ public class ConfigTest {
                 .append("[IRI]").append(System.lineSeparator())
                 .append("PORT = 17000").append(System.lineSeparator())
                 .append("NEIGHBORS = udp://neighbor1 neighbor, tcp://neighbor2").append(System.lineSeparator())
+                .append("REMOTE_TRUSTED_API_HOSTS = 192.168.0.55, 10.0.0.10").append(System.lineSeparator())
                 .append("ZMQ_ENABLED = true").append(System.lineSeparator())
                 .append("P_REMOVE_REQUEST = 0.4").append(System.lineSeparator())
                 .append("MWM = 4").append(System.lineSeparator())
@@ -204,8 +209,14 @@ public class ConfigTest {
         Assert.assertEquals("PORT", 17000, iotaConfig.getPort());
         Assert.assertEquals("NEIGHBORS", Arrays.asList("udp://neighbor1", "neighbor", "tcp://neighbor2"),
                 iotaConfig.getNeighbors());
+
+        List<InetAddress> expectedTrustedApiHosts = Arrays.asList(
+                InetAddress.getByName("192.168.0.55"),
+                InetAddress.getByName("10.0.0.10"),
+                BaseIotaConfig.Defaults.REMOTE_TRUSTED_API_HOSTS);
+        Assert.assertEquals("REMOTE_TRUSTED_API_HOSTS", expectedTrustedApiHosts, iotaConfig.getRemoteTrustedApiHosts());
+
         Assert.assertEquals("ZMQ_ENABLED", true, iotaConfig.isZmqEnabled());
-        Assert.assertEquals("P_REMOVE_REQUEST", 0.4d, iotaConfig.getpRemoveRequest(), 0);
         Assert.assertNotEquals("MWM", 4, iotaConfig.getMwm());
     }
 
@@ -245,7 +256,6 @@ public class ConfigTest {
         Assert.assertEquals("RESCAN", false, iotaConfig.isRescanDb());
         //false by default
         Assert.assertEquals("REVALIDATE", false, iotaConfig.isRevalidate());
-        Assert.assertEquals("P_REMOVE_REQUEST", 0.4d, iotaConfig.getpRemoveRequest(), 0);
         Assert.assertEquals("MWM", 4, iotaConfig.getMwm());
         Assert.assertEquals("NUMBER_OF_KEYS_IN_A_MILESTONE", 3, iotaConfig.getNumberOfKeysInMilestone());
         Assert.assertEquals("TIPSELECTION_ALPHA", 1.1d, iotaConfig.getAlpha(), 0);
@@ -303,7 +313,10 @@ public class ConfigTest {
                 .map(Enum::name)
                 // make it explicit that we have removed some configs
                 .filter(config -> !ArrayUtils.contains(new String[]{"CONFIG", "TESTNET", "DEBUG",
-                        "MIN_RANDOM_WALKS", "MAX_RANDOM_WALKS"}, config))
+                        "MIN_RANDOM_WALKS", "MAX_RANDOM_WALKS", "MAX_PEERS", "UDP_RECEIVER_PORT", "TCP_RECEIVER_PORT",
+                        "P_REMOVE_REQUEST", "P_SELECT_MILESTONE", "P_PROPAGATE_REQUEST", "P_DROP_TRANSACTION",
+                        "P_SELECT_MILESTONE_CHILD", "TRANSACTION_PACKET_SIZE", "P_REPLY_RANDOM_TIP",
+                        "TIP_SOLIDIFIER_ENABLED"}, config))
                 .forEach(config ->
                         Assert.assertThat(configNames, IsCollectionContaining.hasItem(config)));
     }
@@ -337,8 +350,7 @@ public class ConfigTest {
         CONFIG,
         PORT,
         API_HOST,
-        UDP_RECEIVER_PORT,
-        TCP_RECEIVER_PORT,
+        NEIGHBORING_SOCKET_PORT,
         TESTNET,
         DEBUG,
         REMOTE_LIMIT_API,

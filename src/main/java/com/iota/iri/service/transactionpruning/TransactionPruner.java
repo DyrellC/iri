@@ -6,6 +6,7 @@ package com.iota.iri.service.transactionpruning;
  * parts of the code.
  */
 public interface TransactionPruner {
+
     /**
      * This method adds a job to the TransactionPruner, that consequently can be executed by the {@link #processJobs()}
      * method.
@@ -31,29 +32,18 @@ public interface TransactionPruner {
     void processJobs() throws TransactionPruningException;
 
     /**
-     * This method saves the current state of the {@link TransactionPruner}, so it can later be restored by
-     * {@link #restoreState()}.
-     *
-     * It is used to maintain the state between IRI restarts and pick up pruning where it stopped when IRI shut down.
-     *
-     * @throws TransactionPruningException if anything goes wrong while saving the current state
+     * This method initializes the instance by preparing the pruning jobs.
      */
-    void saveState() throws TransactionPruningException;
+    void init();
 
     /**
-     * Restores the state of the {@link TransactionPruner} after being saved before by {@link #saveState()}.
-     *
-     * It is used to keep the state between IRI restarts and pick up pruning where it stopped when IRI shut down.
-     *
-     * @throws TransactionPruningException if anything goes wrong while restoring the state
+     * Starts the pruning jobs.
      */
-    void restoreState() throws TransactionPruningException;
+    void start();
 
     /**
-     * This method removes all queued jobs and resets the state of the {@link TransactionPruner}. It can for example be
-     * used to cleanup after tests.
-     *
-     * @throws TransactionPruningException if anything goes wrong while clearing the jobs
-     * */
-    void clear() throws TransactionPruningException;
+     * Shuts down the pruning jobs.
+     */
+    void shutdown();
+
 }

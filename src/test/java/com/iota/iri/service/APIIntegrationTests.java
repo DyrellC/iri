@@ -2,7 +2,10 @@ package com.iota.iri.service;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import com.iota.iri.IXI;
+import com.iota.iri.MainInjectionConfiguration;
 import com.iota.iri.Iota;
 import com.iota.iri.conf.ConfigFactory;
 import com.iota.iri.conf.IXIConfig;
@@ -10,6 +13,9 @@ import com.iota.iri.conf.IotaConfig;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.crypto.SpongeFactory;
 import com.iota.iri.model.TransactionHash;
+import com.iota.iri.network.NetworkInjectionConfiguration;
+import com.iota.iri.service.restserver.resteasy.RestEasy;
+import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.utils.Converter;
 import com.jayway.restassured.RestAssured;
 import com.jayway.restassured.builder.ResponseSpecBuilder;
@@ -34,6 +40,13 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.fail;
 
+/**
+ * Windows developer notes:
+ * For running this tests on windows you need the RocksDB dependencies. You need to install the
+ * Visual C++ Redistributable for Visual Studio 2015 x64 from
+ * https://www.microsoft.com/en-us/download/confirmation.aspx?id=48145
+ * Make sure your Java JDK is a 64x version and your JAVA_HOME is set correctly.
+ */
 public class APIIntegrationTests {
 
     private static final Boolean spawnNode = true; //can be changed to false to use already deployed node
@@ -49,7 +62,7 @@ public class APIIntegrationTests {
     private static ResponseSpecification specSuccessResponse;
     private static ResponseSpecification specErrorResponse;
     // Constants used in tests
-    private static final String[] URIS = {"udp://8.8.8.8:14266", "udp://8.8.8.5:14266"};
+    private static final String[] URIS = {"tcp://8.8.8.8:14266", "tcp://8.8.8.5:14266"};
     private static final String[] ADDRESSES = {"RVORZ9SIIP9RCYMREUIXXVPQIPHVCNPQ9HZWYKFWYWZRE9JQKG9REPKIASHUUECPSQO9JT9XNMVKWYGVA"};
     private static final String[] HASHES = {"OAATQS9VQLSXCLDJVJJVYUGONXAXOFMJOZNSYWRZSWECMXAQQURHQBJNLD9IOFEPGZEPEMPXCIVRX9999"};
     //Trytes of "VHBRBB9EWCPDKYIBEZW9XVX9AOBQKSCKSTMJLGBANQ99PR9HGYNH9AJWTMHJQBDJHZVWHZMXPILS99999"
@@ -62,7 +75,7 @@ public class APIIntegrationTests {
     private static API api;
     private static IXI ixi;
     private static IotaConfig configuration;
-    private static Logger log = LoggerFactory.getLogger(APIIntegrationTests.class);
+    private static final Logger log = LoggerFactory.getLogger(APIIntegrationTests.class);
 
 
     @BeforeClass
@@ -76,20 +89,23 @@ public class APIIntegrationTests {
             logFolder.create();
 
             configuration = ConfigFactory.createIotaConfig(true);
-            String[] args = {"-p", portStr, "--testnet", "--db-path", dbFolder.getRoot().getAbsolutePath(), "--db-log-path",
+            String[] args = {"-p", portStr, "--testnet", String.valueOf(true), "--max-neighbors", String.valueOf(5), "--db-path", dbFolder.getRoot().getAbsolutePath(), "--db-log-path",
             logFolder.getRoot().getAbsolutePath(), "--mwm", "1"};
             configuration.parseConfigFromArgs(args);
+            Injector injector = Guice.createInjector(new MainInjectionConfiguration(configuration),
+                    new NetworkInjectionConfiguration(configuration));
 
             //create node
-            iota = new Iota(configuration);
-            ixi = new IXI(iota);
-            api = new API(iota, ixi);
+            iota = injector.getInstance(Iota.class);
+            ixi = injector.getInstance(IXI.class);
+            api = injector.getInstance(API.class);
 
             //init
             try {
                 iota.init();
-                iota.snapshotProvider.getInitialSnapshot().setTimestamp(0);
-                api.init();
+                SnapshotProvider snapshotProvider = injector.getInstance(SnapshotProvider.class);
+                snapshotProvider.getInitialSnapshot().setTimestamp(0);
+                api.init(new RestEasy(configuration));
                 ixi.init(IXIConfig.IXI_DIR);
             } catch (final Exception e) {
                 log.error("Exception during IOTA node initialisation: ", e);
@@ -134,16 +150,16 @@ public class APIIntegrationTests {
      * Tests can choose to use this method instead of the no-args given() static method
      * if they want to manually specify custom timeouts.
      *
-     * @param socket_timeout     The Remote host response time.
-     * @param connection_timeout Remote host connection time & HttpConnectionManager connection return time.
+     * @param socketTimeout     The Remote host response time.
+     * @param connectionTimeout Remote host connection time & HttpConnectionManager connection return time.
      * @return The RequestSpecification to use for the test.
      */
-    private static RequestSpecification given(int socket_timeout, int connection_timeout) {
+    private static RequestSpecification given(int socketTimeout, int connectionTimeout) {
         return RestAssured.given().config(RestAssured.config()
             .httpClient(HttpClientConfig.httpClientConfig()
-                .setParam("http.conn-manager.timeout", (long) connection_timeout)
-                .setParam("http.connection.timeout", connection_timeout)
-                .setParam("http.socket.timeout", socket_timeout)))
+                .setParam("http.conn-manager.timeout", (long) connectionTimeout)
+                .setParam("http.connection.timeout", connectionTimeout)
+                .setParam("http.socket.timeout", socketTimeout)))
                 .contentType("application/json").header("X-IOTA-API-Version", 1);
     }
 
@@ -198,6 +214,26 @@ public class APIIntegrationTests {
             body(containsString("time")).
             body(containsString("tips")).
             body(containsString("transactionsToRequest"));
+    }
+
+    @Test
+    public void shouldTestGetIotaConfig() {
+
+        final Map<String, Object> request = new HashMap<>();
+        request.put("command", "getNodeAPIConfiguration");
+
+        given().
+            body(gson().toJson(request)).
+            when().
+            post("/").
+            then().
+            spec(specSuccessResponse).
+            body(containsString("maxFindTransactions")).
+            body(containsString("maxRequestsList")).
+            body(containsString("maxGetTrytes")).
+            body(containsString("maxBodyLength")).
+            body(containsString("testNet")).
+            body(containsString("milestoneStartIndex"));
     }
 
     @Test

@@ -10,9 +10,6 @@ import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.*;
 
-/**
- * Created by paul on 4/11/17.
- */
 public class MilestoneViewModelTest {
     final TemporaryFolder dbFolder = new TemporaryFolder();
     final TemporaryFolder logFolder = new TemporaryFolder();
@@ -178,7 +175,7 @@ public class MilestoneViewModelTest {
     }
 
     @Test
-    public void PrevBefore() throws Exception {
+    public void prevBefore() throws Exception {
         int first = 8;
         int next = 9;
         new MilestoneViewModel(next, HashFactory.TRANSACTION.create("GBCDEBGHIJKLMNOPQRSTUVWXYZ9ABCDEFGHIJKLMNOPQRSTUVWXYZ9ABCDEFGHIJKLMNOPQRSTUV99999")).store(tangle);

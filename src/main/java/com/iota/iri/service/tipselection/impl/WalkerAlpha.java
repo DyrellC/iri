@@ -1,20 +1,25 @@
 package com.iota.iri.service.tipselection.impl;
 
+import java.util.Collections;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.iota.iri.conf.TipSelConfig;
 import com.iota.iri.controllers.ApproveeViewModel;
 import com.iota.iri.model.Hash;
-import com.iota.iri.model.HashId;
 import com.iota.iri.service.tipselection.TailFinder;
 import com.iota.iri.service.tipselection.WalkValidator;
 import com.iota.iri.service.tipselection.Walker;
 import com.iota.iri.storage.Tangle;
-import com.iota.iri.utils.collections.interfaces.UnIterableMap;
-import com.iota.iri.zmq.MessageQ;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Implementation of <tt>Walker</tt> that performs a weighted random walk
@@ -24,14 +29,13 @@ import java.util.stream.Collectors;
 public class WalkerAlpha implements Walker {
 
     /**
-    * {@code alpha}: a positive number that controls the randomness of the walk. 
+    * {@code alpha}: a positive number that controls the randomness of the walk.
     * The closer it is to 0, the less bias the random walk will be.
     */
     private double alpha;
     private final Random random;
 
     private final Tangle tangle;
-    private final MessageQ messageQ;
     private final Logger log = LoggerFactory.getLogger(Walker.class);
 
     private final TailFinder tailFinder;
@@ -41,13 +45,11 @@ public class WalkerAlpha implements Walker {
      *
      * @param tailFinder instance of tailFinder, used to step from tail to tail in random walk.
      * @param tangle Tangle object which acts as a database interface
-     * @param messageQ ZMQ handle to publish telemetrics.
      * @param random a source of randomness.
      * @param config configurations to set internal parameters.
      */
-    public WalkerAlpha(TailFinder tailFinder, Tangle tangle, MessageQ messageQ, Random random, TipSelConfig config) {
+    public WalkerAlpha(TailFinder tailFinder, Tangle tangle, Random random, TipSelConfig config) {
         this.tangle = tangle;
-        this.messageQ = messageQ;
         this.tailFinder = tailFinder;
         this.random = random;
         this.alpha = config.getAlpha();
@@ -68,28 +70,31 @@ public class WalkerAlpha implements Walker {
     }
 
     @Override
-    public Hash walk(Hash entryPoint, UnIterableMap<HashId, Integer> ratings, WalkValidator walkValidator) throws Exception {
+    public Hash walk(Hash entryPoint, Map<Hash, Integer> ratings, WalkValidator walkValidator) throws Exception {
         if (!walkValidator.isValid(entryPoint)) {
             throw new IllegalStateException("entry point failed consistency check: " + entryPoint.toString());
         }
-        
+
         Optional<Hash> nextStep;
         Deque<Hash> traversedTails = new LinkedList<>();
         traversedTails.add(entryPoint);
 
         //Walk
         do {
+            if(Thread.interrupted()){
+                throw new InterruptedException();
+            }
             nextStep = selectApprover(traversedTails.getLast(), ratings, walkValidator);
             nextStep.ifPresent(traversedTails::add);
          } while (nextStep.isPresent());
-        
+
         log.debug("{} tails traversed to find tip", traversedTails.size());
-        messageQ.publish("mctn %d", traversedTails.size());
+        tangle.publish("mctn %d", traversedTails.size());
 
         return traversedTails.getLast();
     }
 
-    private Optional<Hash> selectApprover(Hash tailHash, UnIterableMap<HashId, Integer> ratings, WalkValidator walkValidator) throws Exception {
+    private Optional<Hash> selectApprover(Hash tailHash, Map<Hash, Integer> ratings, WalkValidator walkValidator) throws Exception {
         Set<Hash> approvers = getApprovers(tailHash);
         return findNextValidTail(ratings, approvers, walkValidator);
     }
@@ -99,7 +104,7 @@ public class WalkerAlpha implements Walker {
         return approveeViewModel.getHashes();
     }
 
-    private Optional<Hash> findNextValidTail(UnIterableMap<HashId, Integer> ratings, Set<Hash> approvers, WalkValidator walkValidator) throws Exception {
+    private Optional<Hash> findNextValidTail(Map<Hash, Integer> ratings, Set<Hash> approvers, WalkValidator walkValidator) throws Exception {
         Optional<Hash> nextTailHash = Optional.empty();
 
         //select next tail to step to
@@ -118,38 +123,46 @@ public class WalkerAlpha implements Walker {
         return nextTailHash;
     }
 
-    private Optional<Hash> select(UnIterableMap<HashId, Integer> ratings, Set<Hash> approversSet) {
-
-        //filter based on tangle state when starting the walk
-        List<Hash> approvers = approversSet.stream().filter(ratings::containsKey).collect(Collectors.toList());
-
-        //After filtering, if no approvers are available, it's a tip.
-        if (approvers.size() == 0) {
-            return Optional.empty();
-        }
-
-        //calculate the probabilities
-        List<Integer> walkRatings = approvers.stream().map(ratings::get).collect(Collectors.toList());
-
-        Integer maxRating = walkRatings.stream().max(Integer::compareTo).orElse(0);
-        //walkRatings.stream().reduce(0, Integer::max);
-
-        //transition probability function (normalize ratings based on Hmax)
-        List<Integer> normalizedWalkRatings = walkRatings.stream().map(w -> w - maxRating).collect(Collectors.toList());
-        List<Double> weights = normalizedWalkRatings.stream().map(w -> Math.exp(alpha * w)).collect(Collectors.toList());
-
-        //select the next transaction
-        Double weightsSum = weights.stream().reduce(0.0, Double::sum);
-        double target = random.nextDouble() * weightsSum;
-
+    private Optional<Hash> select(Map<Hash, Integer> ratings, Set<Hash> approversSet) {
+        List<Hash> approvers;         
         int approverIndex;
-        for (approverIndex = 0; approverIndex < weights.size() - 1; approverIndex++) {
-            target -= weights.get(approverIndex);
-            if (target <= 0) {
-                break;
-            }
-        }
 
+        //Check if ratings map is empty. If so, alpha was set to 0 and a random approver will be selected.
+        if(!Collections.EMPTY_MAP.equals(ratings)) {
+            //filter based on tangle state when starting the walk            
+            approvers = approversSet.stream().filter(ratings::containsKey).collect(Collectors.toList());
+            //After filtering, if no approvers are available, it's a tip.
+            if (approvers.size() == 0) {
+                return Optional.empty();
+            }
+
+            //calculate the probabilities
+            List<Integer> walkRatings = approvers.stream().map(ratings::get).collect(Collectors.toList());
+
+            Integer maxRating = walkRatings.stream().max(Integer::compareTo).orElse(0);
+            //walkRatings.stream().reduce(0, Integer::max);
+
+            //transition probability function (normalize ratings based on Hmax)
+            List<Integer> normalizedWalkRatings = walkRatings.stream().map(w -> w - maxRating).collect(Collectors.toList());
+            List<Double> weights = normalizedWalkRatings.stream().map(w -> Math.exp(alpha * w)).collect(Collectors.toList());
+
+            //select the next transaction
+            Double weightsSum = weights.stream().reduce(0.0, Double::sum);
+            double target = random.nextDouble() * weightsSum;
+
+            for (approverIndex = 0; approverIndex < weights.size() - 1; approverIndex++) {
+                target -= weights.get(approverIndex);
+                if (target <= 0) {
+                    break;
+                }
+            }
+        } else {
+            approvers = approversSet.stream().filter(ratings::containsKey).collect(Collectors.toList());
+            if (approvers.size() == 0) {
+                return Optional.empty();
+            }
+            approverIndex = random.nextInt(approversSet.size());
+        }
         return Optional.of(approvers.get(approverIndex));
     }
 

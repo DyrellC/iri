@@ -1,5 +1,6 @@
 from aloe import world, step
 from util.test_logic import api_test_logic as api_utils
+from util.test_logic import value_fetch_logic
 from util.response_logic import response_handling as response_handling
 
 import logging
@@ -86,10 +87,15 @@ def check_response_for_value(step, api_call):
             if isinstance(response_value, list):
                 response_value = response_value[0]
 
-            assert expected_value == response_value, "The expected value {} does not match"" \
-            ""the response value: {}".format(expected_value, response_value)
-
+            assert expected_value == response_value, "The expected value {} does not match""\
+                                                     ""the response value: {}".format(expected_value, response_value)
     logger.info('Response contained expected values')
+
+
+@step(r'the response for "([^"]*)" should return null')
+def check_if_null(step, api_call):
+    response = world.responses[api_call][world.config['nodeId']]
+    assert response is None, "Response is not null"
 
 
 @step(r'a response with the following is returned:')
@@ -118,8 +124,8 @@ def compare_response(step):
 def compare_gtta_with_milestones(step):
     """Compares the getTransactionsToApprove response values with the collected milestone issuing address"""
     logger.info("Compare GTTA response with milestones")
-    gtta_responses = api_utils.fetch_response('getTransactionsToApprove')
-    find_transactions_responses = api_utils.fetch_response('findTransactions')
+    gtta_responses = value_fetch_logic.fetch_response('getTransactionsToApprove')
+    find_transactions_responses = value_fetch_logic.fetch_response('findTransactions')
     node = world.config['nodeId']
     milestones = list(find_transactions_responses[node]['hashes'])
     world.config['max'] = len(gtta_responses[node])
@@ -160,7 +166,7 @@ def compare_gtta_with_milestones(step):
     logger.info('Transactions logged in /tests/features/machine3/blowball_logs.txt')
 
 
-@step(r'less than (\d+) percent of the returned transactions should reference milestones')
+@step(r'less than (\d+) percent of the returned transactions should be milestones')
 def less_than_max_percent(step, max_percent):
     """
     Checks the number of returned milestones and ensures that the total number of milestones returned is below a
@@ -208,3 +214,4 @@ def compare_responses(value, milestone_list, transaction_list, transaction_count
             transaction_list.append(value)
             transaction_counter_list.append(1)
             logger.debug('added transaction "{}" to transaction list'.format(value))
+

@@ -1,5 +1,7 @@
 package com.iota.iri;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.iota.iri.conf.ProtocolConfig;
 import com.iota.iri.controllers.TipsViewModel;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.crypto.Curl;
@@ -15,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.iota.iri.controllers.TransactionViewModel.*;
 
@@ -50,9 +51,15 @@ public class TransactionValidator {
      * @param snapshotProvider data provider for the snapshots that are relevant for the node
      * @param tipsViewModel container that gets updated with the latest tips (transactions with no children)
      * @param transactionRequester used to request missing transactions from neighbors
+     * @param protocolConfig used for checking if we are in testnet and mwm. testnet <tt>true</tt> if we are in testnet
+     *                       mode, this caps {@code mwm} to {@value #TESTNET_MWM_CAP} regardless of parameter input.
+     *                       minimum weight magnitude: the minimal number of 9s that ought to appear at the end of the
+     *                       transaction hash
      */
+
     TransactionValidator(Tangle tangle, SnapshotProvider snapshotProvider, TipsViewModel tipsViewModel,
-                         TransactionRequester transactionRequester, TransactionSolidifier transactionSolidifier) {
+                         TransactionRequester transactionRequester, ProtocolConfig protocolConfig,
+                         TransactionSolidifier transactionSolidifier) {
         this.tangle = tangle;
         this.snapshotProvider = snapshotProvider;
         this.tipsViewModel = tipsViewModel;
@@ -60,26 +67,8 @@ public class TransactionValidator {
         this.transactionSolidifier = transactionSolidifier;
     }
 
-    /**
-     * Does two things:
-     * <ol>
-     *     <li>Sets the minimum weight magnitude (MWM). POW on a transaction is validated by counting a certain
-     *     number of consecutive 9s in the end of the transaction hash. The number of 9s is the MWM.</li>
-     *     <li>Starts the transaction solidification thread.</li>
-     * </ol>
-     *
-     *
-     * //@see #spawnSolidTransactionsPropagation()
-     * @param testnet <tt>true</tt> if we are in testnet mode, this caps {@code mwm} to {@value #TESTNET_MWM_CAP}
-     *                regardless of parameter input.
-     * @param mwm minimum weight magnitude: the minimal number of 9s that ought to appear at the end of the transaction
-     *            hash
-     */
-    public void init(boolean testnet, int mwm) {
-        setMwm(testnet, mwm);
-    }
 
-    //Package Private For Testing
+    @VisibleForTesting
     void setMwm(boolean testnet, int mwm) {
         minWeightMagnitude = mwm;
 
@@ -113,7 +102,7 @@ public class TransactionValidator {
      */
     private boolean hasInvalidTimestamp(TransactionViewModel transactionViewModel) {
         // ignore invalid timestamps for transactions that were requested by our node while solidifying a milestone
-        if(transactionRequester.isTransactionRequested(transactionViewModel.getHash(), true)) {
+        if(transactionRequester.wasTransactionRecentlyRequested(transactionViewModel.getHash())) {
             return false;
         }
 
@@ -193,16 +182,15 @@ public class TransactionValidator {
     }
 
     /**
-     * This method does the same as {@link #checkSolidity(Hash, boolean, int)} but defaults to an unlimited amount
+     * This method does the same as {@link #checkSolidity(Hash, int)} but defaults to an unlimited amount
      * of transactions that are allowed to be traversed.
      *
      * @param hash hash of the transactions that shall get checked
-     * @param milestone true if the solidity check was issued while trying to solidify a milestone and false otherwise
      * @return true if the transaction is solid and false otherwise
      * @throws Exception if anything goes wrong while trying to solidify the transaction
      */
-    public boolean checkSolidity(Hash hash, boolean milestone) throws Exception {
-        return checkSolidity(hash, milestone, Integer.MAX_VALUE);
+    public boolean checkSolidity(Hash hash) throws Exception {
+        return checkSolidity(hash, Integer.MAX_VALUE);
     }
 
     /**
@@ -220,12 +208,11 @@ public class TransactionValidator {
      * solidification threads).
      *
      * @param hash hash of the transactions that shall get checked
-     * @param milestone true if the solidity check was issued while trying to solidify a milestone and false otherwise
      * @param maxProcessedTransactions the maximum amount of transactions that are allowed to be traversed
      * @return true if the transaction is solid and false otherwise
      * @throws Exception if anything goes wrong while trying to solidify the transaction
      */
-    public boolean checkSolidity(Hash hash, boolean milestone, int maxProcessedTransactions) throws Exception {
+    public boolean checkSolidity(Hash hash, int maxProcessedTransactions) throws Exception {
         if(fromHash(tangle, hash).isSolid()) {
             return true;
         }
@@ -237,11 +224,6 @@ public class TransactionValidator {
         analyzedHashes.clear();
         return solid;
     }
-
-
-
-
-
 
 
     /**
@@ -279,11 +261,7 @@ public class TransactionValidator {
         transactionSolidifier.updateTransactionStatus(transactionViewModel);
     }
 
-
-
-
-
-    //Package Private For Testing
+    @VisibleForTesting
     boolean isNewSolidTxSetsEmpty () {
         return newSolidTransactionsOne.isEmpty() && newSolidTransactionsTwo.isEmpty();
     }

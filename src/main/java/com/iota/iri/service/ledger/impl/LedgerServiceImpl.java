@@ -8,67 +8,64 @@ import com.iota.iri.model.Hash;
 import com.iota.iri.service.ledger.LedgerException;
 import com.iota.iri.service.ledger.LedgerService;
 import com.iota.iri.service.milestone.MilestoneService;
+import com.iota.iri.service.snapshot.Snapshot;
 import com.iota.iri.service.snapshot.SnapshotException;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.service.snapshot.SnapshotService;
 import com.iota.iri.service.snapshot.impl.SnapshotStateDiffImpl;
+import com.iota.iri.service.spentaddresses.SpentAddressesService;
 import com.iota.iri.storage.Tangle;
 
 import java.util.*;
 
 /**
- * Creates a service instance that allows us to perform ledger state specific operations.<br />
- * <br />
- * This class is stateless and does not hold any domain specific models.<br />
+ * <p>
+ * Creates a service instance that allows us to perform ledger state specific operations.
+ * </p>
+ * <p>
+ * This class is stateless and does not hold any domain specific models.
+ * </p>
  */
 public class LedgerServiceImpl implements LedgerService {
     /**
-     * Holds the tangle object which acts as a database interface.<br />
+     * Holds the tangle object which acts as a database interface.
      */
-    private Tangle tangle;
+    private final Tangle tangle;
 
     /**
-     * Holds the snapshot provider which gives us access to the relevant snapshots.<br />
+     * Holds the snapshot provider which gives us access to the relevant snapshots.
      */
-    private SnapshotProvider snapshotProvider;
+    private final SnapshotProvider snapshotProvider;
 
     /**
-     * Holds a reference to the service instance containing the business logic of the snapshot package.<br />
+     * Holds a reference to the service instance containing the business logic of the snapshot package.
      */
-    private SnapshotService snapshotService;
+    private final SnapshotService snapshotService;
 
     /**
-     * Holds a reference to the service instance containing the business logic of the milestone package.<br />
+     * Holds a reference to the service instance containing the business logic of the milestone package.
      */
-    private MilestoneService milestoneService;
+    private final MilestoneService milestoneService;
+
+    private final SpentAddressesService spentAddressesService;
+
+    private final BundleValidator bundleValidator;
 
     /**
-     * Initializes the instance and registers its dependencies.<br />
-     * <br />
-     * It simply stores the passed in values in their corresponding private properties.<br />
-     * <br />
-     * Note: Instead of handing over the dependencies in the constructor, we register them lazy. This allows us to have
-     *       circular dependencies because the instantiation is separated from the dependency injection. To reduce the
-     *       amount of code that is necessary to correctly instantiate this class, we return the instance itself which
-     *       allows us to still instantiate, initialize and assign in one line - see Example:<br />
-     *       <br />
-     *       {@code ledgerService = new LedgerServiceImpl().init(...);}
-     *
      * @param tangle Tangle object which acts as a database interface
      * @param snapshotProvider snapshot provider which gives us access to the relevant snapshots
      * @param snapshotService service instance of the snapshot package that gives us access to packages' business logic
      * @param milestoneService contains the important business logic when dealing with milestones
-     * @return the initialized instance itself to allow chaining
      */
-    public LedgerServiceImpl init(Tangle tangle, SnapshotProvider snapshotProvider, SnapshotService snapshotService,
-            MilestoneService milestoneService) {
-
+    public LedgerServiceImpl(Tangle tangle, SnapshotProvider snapshotProvider, SnapshotService snapshotService,
+            MilestoneService milestoneService, SpentAddressesService spentAddressesService,
+                                  BundleValidator bundleValidator) {
         this.tangle = tangle;
         this.snapshotProvider = snapshotProvider;
         this.snapshotService = snapshotService;
         this.milestoneService = milestoneService;
-
-        return this;
+        this.spentAddressesService = spentAddressesService;
+        this.bundleValidator = bundleValidator;
     }
 
     @Override
@@ -153,7 +150,9 @@ public class LedgerServiceImpl implements LedgerService {
         Map<Hash, Long> state = new HashMap<>();
         Set<Hash> countedTx = new HashSet<>();
 
-        snapshotProvider.getInitialSnapshot().getSolidEntryPoints().keySet().forEach(solidEntryPointHash -> {
+        Snapshot initialSnapshot = snapshotProvider.getInitialSnapshot();
+        Map<Hash, Integer> solidEntryPoints = initialSnapshot.getSolidEntryPoints();
+        solidEntryPoints.keySet().forEach(solidEntryPointHash -> {
             visitedTransactions.add(solidEntryPointHash);
             countedTx.add(solidEntryPointHash);
         });
@@ -171,36 +170,33 @@ public class LedgerServiceImpl implements LedgerService {
                             return null;
                         } else {
                             if (transactionViewModel.getCurrentIndex() == 0) {
-                                boolean validBundle = false;
 
-                                final List<List<TransactionViewModel>> bundleTransactions = BundleValidator.validate(
+                                final List<TransactionViewModel> bundleTransactions = bundleValidator.validate(
                                         tangle, snapshotProvider.getInitialSnapshot(), transactionViewModel.getHash());
 
-                                for (final List<TransactionViewModel> bundleTransactionViewModels : bundleTransactions) {
-
-                                    if (BundleValidator.isInconsistent(bundleTransactionViewModels)) {
-                                        break;
-                                    }
-
-                                    if (bundleTransactionViewModels.get(0).getHash().equals(transactionViewModel.getHash())) {
-                                        validBundle = true;
-
-                                        for (final TransactionViewModel bundleTransactionViewModel : bundleTransactionViewModels) {
-
-                                            if (bundleTransactionViewModel.value() != 0 && countedTx.add(bundleTransactionViewModel.getHash())) {
-
-                                                final Hash address = bundleTransactionViewModel.getAddressHash();
-                                                final Long value = state.get(address);
-                                                state.put(address, value == null ? bundleTransactionViewModel.value()
-                                                        : Math.addExact(value, bundleTransactionViewModel.value()));
-                                            }
-                                        }
-
-                                        break;
-                                    }
-                                }
-                                if (!validBundle) {
+                                if(bundleTransactions.isEmpty()){
                                     return null;
+                                }
+
+                                //ISSUE 1008: generateBalanceDiff should be refactored so we don't have those hidden
+                                // concerns
+                                spentAddressesService
+                                        .persistValidatedSpentAddressesAsync(bundleTransactions);
+
+                                if (BundleValidator.isInconsistent(bundleTransactions)) {
+                                    break;
+                                }
+
+
+                                for (final TransactionViewModel bundleTransactionViewModel : bundleTransactions) {
+
+                                    if (bundleTransactionViewModel.value() != 0 && countedTx.add(bundleTransactionViewModel.getHash())) {
+
+                                        final Hash address = bundleTransactionViewModel.getAddressHash();
+                                        final Long value = state.get(address);
+                                        state.put(address, value == null ? bundleTransactionViewModel.value()
+                                                : Math.addExact(value, bundleTransactionViewModel.value()));
+                                    }
                                 }
                             }
 
@@ -217,18 +213,23 @@ public class LedgerServiceImpl implements LedgerService {
         return state;
     }
 
+
     /**
+     * <p>
      * Generates the {@link com.iota.iri.model.StateDiff} that belongs to the given milestone in the database and marks
      * all transactions that have been approved by the milestone accordingly by setting their {@code snapshotIndex}
-     * value.<br />
-     * <br />
+     * value.
+     * </p>
+     * <p>
      * It first checks if the {@code snapshotIndex} of the transaction belonging to the milestone was correctly set
      * already (to determine if this milestone was processed already) and proceeds to generate the {@link
      * com.iota.iri.model.StateDiff} if that is not the case. To do so, it calculates the balance changes, checks if
-     * they are consistent and only then writes them to the database.<br />
-     * <br />
+     * they are consistent and only then writes them to the database.
+     * </p>
+     * <p>
      * If inconsistencies in the {@code snapshotIndex} are found it issues a reset of the corresponding milestone to
-     * recover from this problem.<br />
+     * recover from this problem.
+     * </p>
      *
      * @param milestone the milestone that shall have its {@link com.iota.iri.model.StateDiff} generated
      * @return {@code true} if the {@link com.iota.iri.model.StateDiff} could be generated and {@code false} otherwise
