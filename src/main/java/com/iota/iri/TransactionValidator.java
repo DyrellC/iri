@@ -65,6 +65,7 @@ public class TransactionValidator {
         this.tipsViewModel = tipsViewModel;
         this.transactionRequester = transactionRequester;
         this.transactionSolidifier = transactionSolidifier;
+        setMwm(protocolConfig.isTestnet(), protocolConfig.getMwm());
     }
 
 
@@ -216,8 +217,8 @@ public class TransactionValidator {
         if(fromHash(tangle, hash).isSolid()) {
             return true;
         }
-        Set<Hash> analyzedHashes = new HashSet<>(snapshotProvider.getInitialSnapshot().getSolidEntryPoints().keySet());
-        boolean solid = transactionSolidifier.cascadeSolidCheck(hash, analyzedHashes, milestone, maxProcessedTransactions);
+        LinkedHashSet<Hash> analyzedHashes = new LinkedHashSet<>(snapshotProvider.getInitialSnapshot().getSolidEntryPoints().keySet());
+        boolean solid = transactionSolidifier.cascadeSolidCheck(hash, analyzedHashes, maxProcessedTransactions);
         if (solid) {
             updateSolidTransactions(tangle, snapshotProvider.getInitialSnapshot(), analyzedHashes);
         }

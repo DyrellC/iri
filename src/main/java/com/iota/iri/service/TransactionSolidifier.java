@@ -24,6 +24,8 @@ public class TransactionSolidifier {
      * If true use {@link #newSolidTransactionsOne} while solidifying. Else use {@link #newSolidTransactionsTwo}.
      */
     private final AtomicBoolean useFirst = new AtomicBoolean(true);
+    private final AtomicBoolean useFirstRetry = new AtomicBoolean(true);
+
 
     /**
      * Is {@link #newSolidThread} shutting down
@@ -41,10 +43,12 @@ public class TransactionSolidifier {
 
     private Set<Hash> newSolidTransactionsOne = new LinkedHashSet<>();
     private Set<Hash> newSolidTransactionsTwo = new LinkedHashSet<>();
-    private Set<Hash> transactionsForSolidification = new LinkedHashSet<>();
+    private Set<Hash> transactionsForSolidificationOne = new LinkedHashSet<>();
+    private Set<Hash> transactionsForSolidificationTwo = new LinkedHashSet<>();
+
 
     public static int SOLID_SLEEP_TIME = 500;
-    public static int RESCAN_TIME = 750;
+    public static int RESCAN_TIME = 250;
 
     private static int MAX_PROCESSED_TRANSACTIONS = 5000;
 
@@ -116,19 +120,34 @@ public class TransactionSolidifier {
 
 
     void rescan() {
-        for(Hash hash : transactionsForSolidification) {
+        Set<Hash> transactionsToProcess = new LinkedHashSet<>();
+        useFirst.set(!useFirst.get());
+
+        synchronized (retrySync){
+            if(useFirstRetry.get()){
+                transactionsToProcess.addAll(transactionsForSolidificationOne);
+                transactionsForSolidificationOne.clear();
+            } else {
+                transactionsToProcess.addAll(transactionsForSolidificationTwo);
+                transactionsForSolidificationTwo.clear();
+            }
+        }
+
+        Iterator<Hash> transactionIterator = transactionsToProcess.iterator();
+        while(transactionIterator.hasNext() && !shuttingDown.get()) {
+
             try {
-                Set<Hash> analyzedHashes = new HashSet<>(snapshotProvider.getInitialSnapshot().getSolidEntryPoints().keySet());
-                if(cascadeSolidCheck(hash, analyzedHashes, false, MAX_PROCESSED_TRANSACTIONS)){
+                Hash hash = transactionIterator.next();
+
+                LinkedHashSet<Hash> analyzedHashes = new LinkedHashSet<>(snapshotProvider.getInitialSnapshot().getSolidEntryPoints().keySet());
+                if(cascadeSolidityCheck(hash, analyzedHashes, MAX_PROCESSED_TRANSACTIONS)){
                     updateSolidTransactions(tangle, snapshotProvider.getInitialSnapshot(), analyzedHashes);
-                    transactionsForSolidification.remove(hash);
                 }
             } catch (Exception e ){
                 //////
                 log.error("Error retrying transaction solidification " + e.getMessage());
             }
         }
-
     }
 
 
@@ -139,6 +158,17 @@ public class TransactionSolidifier {
                 newSolidTransactionsOne.add(hash);
             } else {
                 newSolidTransactionsTwo.add(hash);
+            }
+        }
+    }
+
+
+    public void addRetryTransaction(Hash hash) {
+        synchronized (retrySync) {
+            if (useFirstRetry.get()) {
+                transactionsForSolidificationOne.add(hash);
+            } else {
+                transactionsForSolidificationTwo.add(hash);
             }
         }
     }
@@ -245,7 +275,7 @@ public class TransactionSolidifier {
     }
 
 
-    public boolean cascadeSolidCheck(Hash txHash, Set<Hash> analyzedHashes, Boolean milestone, Integer maxProcessedTransactions) throws Exception {
+    public boolean cascadeSolidityCheck(Hash txHash, LinkedHashSet<Hash> analyzedHashes, Integer maxProcessedTransactions) throws Exception {
         if(maxProcessedTransactions != Integer.MAX_VALUE) {
             maxProcessedTransactions += analyzedHashes.size();
         }
@@ -254,17 +284,20 @@ public class TransactionSolidifier {
         Hash hashPointer;
         while ((hashPointer = nonAnalyzedTransactions.poll()) != null) {
             if (analyzedHashes.add(hashPointer)) {
-                if(analyzedHashes.size() >= maxProcessedTransactions) {
+                continue;
+            }
+
+            if(analyzedHashes.size() >= maxProcessedTransactions) {
                     return false;
-                }
+            }
 
                 final TransactionViewModel transaction = fromHash(tangle, hashPointer);
                 if(!transaction.isSolid() && !snapshotProvider.getInitialSnapshot().hasSolidEntryPoint(hashPointer)) {
                     if (transaction.getType() == PREFILLED_SLOT) {
                         solid = false;
 
-                        if (!transactionRequester.isTransactionRequested(hashPointer, milestone)) {
-                            transactionRequester.requestTransaction(hashPointer, milestone);
+                        if (!transactionRequester.isTransactionRequested(hashPointer)) {
+                            transactionRequester.requestTransaction(hashPointer);
                             break;
                         }
                     } else {
@@ -274,7 +307,6 @@ public class TransactionSolidifier {
                 }
             }
 
-        }
         return solid;
     }
 
@@ -285,9 +317,7 @@ public class TransactionSolidifier {
             tipsViewModel.setSolid(tx.getHash());
             addSolidTransaction(tx.getHash());
         } else {
-            synchronized (retrySync){
-                transactionsForSolidification.add(tx.getHash());
-            }
+            addRetryTransaction(tx.getHash());
         }
     }
 
