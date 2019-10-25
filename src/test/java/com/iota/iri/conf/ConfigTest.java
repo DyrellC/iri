@@ -232,7 +232,7 @@ public class ConfigTest {
                 .append("MWM = 4").append(System.lineSeparator())
                 .append("NUMBER_OF_KEYS_IN_A_MILESTONE = 3").append(System.lineSeparator())
                 .append("DONT_VALIDATE_TESTNET_MILESTONE_SIG = true").append(System.lineSeparator())
-                .append("TIPSELECTION_ALPHA = 1.1").append(System.lineSeparator())
+                .append("ALPHA = 1.1").append(System.lineSeparator())
                 //doesn't do anything
                 .append("REMOTE")
                 .append("FAKE").append(System.lineSeparator())
@@ -258,7 +258,7 @@ public class ConfigTest {
         Assert.assertEquals("REVALIDATE", false, iotaConfig.isRevalidate());
         Assert.assertEquals("MWM", 4, iotaConfig.getMwm());
         Assert.assertEquals("NUMBER_OF_KEYS_IN_A_MILESTONE", 3, iotaConfig.getNumberOfKeysInMilestone());
-        Assert.assertEquals("TIPSELECTION_ALPHA", 1.1d, iotaConfig.getAlpha(), 0);
+        Assert.assertEquals("ALPHA", 1.1d, iotaConfig.getAlpha(), 0);
         Assert.assertEquals("DONT_VALIDATE_TESTNET_MILESTONE_SIG",
                 iotaConfig.isDontValidateTestnetMilestoneSig(), true);
         //prove that REMOTE did nothing
@@ -397,7 +397,7 @@ public class ConfigTest {
         TRANSACTION_PACKET_SIZE,
         REQUEST_HASH_SIZE,
         SNAPSHOT_TIME,
-        TIPSELECTION_ALPHA,
+        ALPHA,
         BELOW_MAX_DEPTH_TRANSACTION_LIMIT,
     }
 

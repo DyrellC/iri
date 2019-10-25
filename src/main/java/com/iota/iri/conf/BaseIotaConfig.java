@@ -778,7 +778,7 @@ public abstract class BaseIotaConfig implements IotaConfig {
         return alpha;
     }
 
-    @JsonProperty("TIPSELECTION_ALPHA")
+    @JsonProperty("ALPHA")
     @Parameter(names = "--alpha", description = TipSelConfig.Descriptions.ALPHA)
     protected void setAlpha(double alpha) {
         this.alpha = alpha;
