@@ -11,6 +11,7 @@ import com.iota.iri.crypto.SpongeFactory;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
 import com.iota.iri.model.StateDiff;
+import com.iota.iri.model.persistables.Transaction;
 import com.iota.iri.service.milestone.MilestoneException;
 import com.iota.iri.service.milestone.MilestoneService;
 import com.iota.iri.service.milestone.MilestoneValidity;
@@ -24,10 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 import static com.iota.iri.controllers.TransactionViewModel.OBSOLETE_TAG_TRINARY_OFFSET;
 import static com.iota.iri.service.milestone.MilestoneValidity.*;
@@ -228,6 +226,16 @@ public class MilestoneServiceImpl implements MilestoneService {
         }
 
         return INVALID;
+    }
+
+    @Override
+    public Set<Hash> getMissingMilestones(int index){
+        try {
+            return new LinkedHashSet<>();
+        } catch(Exception e){
+            log.error("Failed to fetch missing milestones");
+            return null;
+        }
     }
 
     @Override

@@ -1,23 +1,28 @@
 package com.iota.iri.service.milestone.impl;
 
 import com.iota.iri.conf.SolidificationConfig;
+import com.iota.iri.controllers.AddressViewModel;
+import com.iota.iri.controllers.BundleViewModel;
 import com.iota.iri.controllers.MilestoneViewModel;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
+import com.iota.iri.model.persistables.Milestone;
 import com.iota.iri.network.TransactionRequester;
+import com.iota.iri.network.pipeline.ProcessingContext;
+import com.iota.iri.network.pipeline.RequestPayload;
+import com.iota.iri.network.pipeline.RequestQueue;
 import com.iota.iri.service.ledger.LedgerService;
-import com.iota.iri.service.milestone.LatestMilestoneTracker;
-import com.iota.iri.service.milestone.MilestoneException;
-import com.iota.iri.service.milestone.MilestoneService;
-import com.iota.iri.service.milestone.LatestSolidMilestoneTracker;
+import com.iota.iri.service.milestone.*;
 import com.iota.iri.service.snapshot.Snapshot;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.storage.Tangle;
 import com.iota.iri.utils.ASCIIProgressBar;
+import com.iota.iri.utils.dag.DAGHelper;
 import com.iota.iri.utils.log.interval.IntervalLogger;
 import com.iota.iri.utils.thread.DedicatedScheduledExecutorService;
 import com.iota.iri.utils.thread.SilentScheduledExecutorService;
 
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +45,6 @@ public class LatestSolidMilestoneTrackerImpl implements LatestSolidMilestoneTrac
      * called by the background worker.
      */
     private static final int RESCAN_INTERVAL = 5000;
-
     /**
      * Holds the logger of this class (a rate limited logger than doesn't spam the CLI output).
      */
@@ -51,6 +55,8 @@ public class LatestSolidMilestoneTrackerImpl implements LatestSolidMilestoneTrac
      */
     private final Tangle tangle;
 
+
+    private Hash cooAddress;
     /**
      * The snapshot provider which gives us access to the relevant snapshots that the node uses (for the ledger
      * state).
@@ -71,6 +77,8 @@ public class LatestSolidMilestoneTrackerImpl implements LatestSolidMilestoneTrac
      * Holds a reference to the service that contains the logic for applying milestones to the ledger state.
      */
     private final LedgerService ledgerService;
+
+    private final BlockingQueue validationQueue = new ArrayBlockingQueue(100);
 
     /**
      * Holds a reference to the manager of the background worker.
@@ -97,6 +105,8 @@ public class LatestSolidMilestoneTrackerImpl implements LatestSolidMilestoneTrac
      * Uses to clear the request queue once we are fully synced.
      */
     private TransactionRequester transactionRequester;
+
+    private RequestQueue requestQueue;
 
     /**
      * Holds information about the current synchronisation progress.
@@ -131,7 +141,7 @@ public class LatestSolidMilestoneTrackerImpl implements LatestSolidMilestoneTrac
     public LatestSolidMilestoneTrackerImpl(Tangle tangle, SnapshotProvider snapshotProvider,
                                            MilestoneService milestoneService, LedgerService ledgerService,
                                            LatestMilestoneTracker latestMilestoneTracker, TransactionRequester transactionRequester,
-                                           SolidificationConfig solidificationConfig) {
+                                           SolidificationConfig solidificationConfig, RequestQueue requestQueue) {
 
         this.tangle = tangle;
         this.snapshotProvider = snapshotProvider;
@@ -140,7 +150,14 @@ public class LatestSolidMilestoneTrackerImpl implements LatestSolidMilestoneTrac
         this.latestMilestoneTracker = latestMilestoneTracker;
         this.transactionRequester = transactionRequester;
         this.solidificationConfig = solidificationConfig;
-    }
+        this.requestQueue = requestQueue;
+        try {
+            this.cooAddress = TransactionViewModel.fromHash(tangle,
+                    MilestoneViewModel.first(tangle).getHash()).getAddressHash();
+        } catch(Exception e){
+            this.cooAddress = null;
+        }
+        }
 
     @Override
     public void start() {
@@ -165,6 +182,10 @@ public class LatestSolidMilestoneTrackerImpl implements LatestSolidMilestoneTrac
     public void trackLatestSolidMilestone() throws MilestoneException {
         try {
             int currentSolidMilestoneIndex = snapshotProvider.getLatestSnapshot().getIndex();
+            if(currentSolidMilestoneIndex > 0 && cooAddress == null){
+                cooAddress = TransactionViewModel.fromHash(tangle,
+                        MilestoneViewModel.get(tangle, currentSolidMilestoneIndex).getHash()).getAddressHash();
+            }
             if (currentSolidMilestoneIndex < latestMilestoneTracker.getLatestMilestoneIndex()) {
                 MilestoneViewModel nextMilestone;
                 while (!Thread.currentThread().isInterrupted() &&
@@ -187,6 +208,48 @@ public class LatestSolidMilestoneTrackerImpl implements LatestSolidMilestoneTrac
         } catch (Exception e) {
             throw new MilestoneException("unexpected error while checking for new latest solid milestones", e);
         }
+    }
+
+
+    private MilestoneViewModel getNextMilestone(int index){
+        MilestoneViewModel nextMilestone;
+        try{
+            nextMilestone = MilestoneViewModel.get(tangle,index);
+            if(nextMilestone == null){
+                validateExistingMilestone(index);
+                requestQueue.add(new ProcessingContext(new RequestPayload(null, index)));
+            }
+        } catch(Exception e) {
+            nextMilestone = null;
+        }
+        return nextMilestone;
+
+    }
+
+
+    /**
+     * Scan for all potential milestone candidates and iteratively check if the transaction has been marked as a
+     * milestone. If it hasn't, then the the transaction is checked to determine if it is incomplete. If that is the
+     * case, request
+     *
+     * @param index
+     */
+    private void validateExistingMilestone(int index){
+        try {
+            AddressViewModel avm = AddressViewModel.load(tangle, cooAddress);
+            for (Hash hash : avm.getHashes()) {
+                TransactionViewModel t = TransactionViewModel.fromHash(tangle, hash);
+
+                if (!t.isMilestone()) {
+                    if (milestoneService.validateMilestone(t, index) == MilestoneValidity.INCOMPLETE) {
+                        transactionRequester.requestTransaction(t.getTrunkTransactionHash());
+                    }
+                }
+            }
+        } catch(Exception e){
+            log.info("Error while trying to validate existing milestone: " + e.getMessage());
+        }
+
     }
 
     /**

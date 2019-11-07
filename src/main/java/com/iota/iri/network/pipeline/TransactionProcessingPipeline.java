@@ -14,7 +14,7 @@ public interface TransactionProcessingPipeline {
      * Defines the different stages of the {@link TransactionProcessingPipelineImpl}.
      */
     enum Stage {
-        PRE_PROCESS, HASHING, VALIDATION, REPLY, RECEIVED, BROADCAST, MULTIPLE, ABORT, FINISH,
+        PRE_PROCESS, HASHING, VALIDATION, REPLY, RECEIVED, BROADCAST, MULTIPLE, ABORT, FINISH, REQUEST,
     }
 
     /**
@@ -64,6 +64,9 @@ public interface TransactionProcessingPipeline {
      * @param txTrits the transaction trits
      */
     void process(byte[] txTrits);
+
+
+    void replyWithMilestone(Neighbor neighbor, ByteBuffer index);
 
     /**
      * Shut downs the pipeline by shutting down all stages.

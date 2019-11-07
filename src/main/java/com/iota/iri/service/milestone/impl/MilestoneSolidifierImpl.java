@@ -1,9 +1,11 @@
 package com.iota.iri.service.milestone.impl;
 
 import com.iota.iri.TransactionValidator;
+import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 import com.iota.iri.service.milestone.MilestoneSolidifier;
 import com.iota.iri.service.snapshot.SnapshotProvider;
+import com.iota.iri.storage.Tangle;
 import com.iota.iri.utils.log.interval.IntervalLogger;
 import com.iota.iri.utils.thread.DedicatedScheduledExecutorService;
 import com.iota.iri.utils.thread.SilentScheduledExecutorService;
@@ -92,6 +94,8 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
      */
     private final Map<Hash, Integer> milestonesToSolidify = new HashMap<>();
 
+    private final Tangle tangle;
+
     /**
      * <p>
      * Holds and entry that represents the youngest milestone in the {@link #milestonesToSolidify} Map.
@@ -110,6 +114,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     public MilestoneSolidifierImpl(SnapshotProvider snapshotProvider, TransactionValidator transactionValidator) {
         this.snapshotProvider = snapshotProvider;
         this.transactionValidator = transactionValidator;
+        this.tangle = tangle;
     }
 
     /**
@@ -236,6 +241,8 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
             Map.Entry<Hash, Integer> currentEntry = iterator.next();
 
+            TransactionViewModel t = TransactionViewModel.fromHash()
+            boolean solid = isSolid(currentEntry);
             if (currentEntry.getValue() <= snapshotProvider.getInitialSnapshot().getIndex() || isSolid(currentEntry)) {
                 unsolidMilestonesPool.remove(currentEntry.getKey());
                 iterator.remove();

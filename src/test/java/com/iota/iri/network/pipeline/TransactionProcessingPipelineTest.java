@@ -98,6 +98,9 @@ public class TransactionProcessingPipelineTest {
     private BroadcastQueue broadcastQueue;
 
     @Mock
+    private RequestQueue requestQueue;
+
+    @Mock
     private BlockingQueue blockingQueue;
 
     private void mockHashingStage(TransactionProcessingPipeline pipeline) {
@@ -122,7 +125,7 @@ public class TransactionProcessingPipelineTest {
 
         TransactionProcessingPipeline pipeline = new TransactionProcessingPipelineImpl(neighborRouter, nodeConfig,
                 transactionValidator, tangle, snapshotProvider, tipsViewModel, latestMilestoneTracker,
-                transactionRequester, broadcastQueue);
+                transactionRequester, broadcastQueue, requestQueue);
 
         // inject mocks
         injectMockedStagesIntoPipeline(pipeline);
@@ -171,7 +174,7 @@ public class TransactionProcessingPipelineTest {
     public void processingAKnownTransactionOnlyFlowsToTheReplyStage() throws InterruptedException {
         TransactionProcessingPipeline pipeline = new TransactionProcessingPipelineImpl(neighborRouter, nodeConfig,
                 transactionValidator, tangle, snapshotProvider, tipsViewModel, latestMilestoneTracker,
-                transactionRequester, broadcastQueue);
+                transactionRequester, broadcastQueue, requestQueue);
 
         // inject mocks
         pipeline.setPreProcessStage(preProcessStage);
@@ -205,7 +208,7 @@ public class TransactionProcessingPipelineTest {
             throws InterruptedException {
         TransactionProcessingPipeline pipeline = new TransactionProcessingPipelineImpl(neighborRouter, nodeConfig,
                 transactionValidator, tangle, snapshotProvider, tipsViewModel, latestMilestoneTracker,
-                transactionRequester, broadcastQueue);
+                transactionRequester, broadcastQueue, requestQueue);
         // inject mocks
         injectMockedStagesIntoPipeline(pipeline);
 
@@ -254,7 +257,7 @@ public class TransactionProcessingPipelineTest {
     public void anInvalidNewTransactionStopsBeingProcessedAfterTheValidationStage() throws InterruptedException {
         TransactionProcessingPipeline pipeline = new TransactionProcessingPipelineImpl(neighborRouter, nodeConfig,
                 transactionValidator, tangle, snapshotProvider, tipsViewModel, latestMilestoneTracker,
-                transactionRequester, broadcastQueue);
+                transactionRequester, broadcastQueue, requestQueue);
 
         // inject mocks
         injectMockedStagesIntoPipeline(pipeline);

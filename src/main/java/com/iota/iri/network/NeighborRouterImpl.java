@@ -893,6 +893,14 @@ public class NeighborRouterImpl implements NeighborRouter {
     }
 
     @Override
+    public void requestMilestone(Neighbor neighbor, int index){
+        byte[] indexBytes = ByteBuffer.allocate(4).putInt(index).array();
+
+        ByteBuffer packet = Protocol.createMilestoneRequestPacket(indexBytes);
+        neighbor.send(packet);
+    }
+
+    @Override
     public void shutdown() {
         shutdown.set(true);
         executor.shutdownNow();

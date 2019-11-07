@@ -24,7 +24,13 @@ public enum ProtocolMessage {
      * take up their full 1604 bytes as the signature message fragment of the tx is truncated.
      */
     TRANSACTION_GOSSIP((byte) 2, (short) (Protocol.GOSSIP_REQUESTED_TX_HASH_BYTES_LENGTH + Protocol.NON_SIG_TX_PART_BYTES_LENGTH
-            + Protocol.SIG_DATA_MAX_BYTES_LENGTH), true);
+            + Protocol.SIG_DATA_MAX_BYTES_LENGTH), true),
+
+    /**
+     * The transaction payload + request
+     */
+    MILESTONE_REQUEST((byte) 3, (short) (Protocol.MILESTONE_REQUEST_INDEX_BYTES_LENGTH), true);
+
 
     private static final ProtocolMessage[] lookup = new ProtocolMessage[256];
 
@@ -42,6 +48,7 @@ public enum ProtocolMessage {
         lookup[0] = HEADER;
         lookup[1] = HANDSHAKE;
         lookup[2] = TRANSACTION_GOSSIP;
+        lookup[3] = MILESTONE_REQUEST;
     }
 
     /**

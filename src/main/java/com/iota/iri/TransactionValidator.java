@@ -66,12 +66,16 @@ public class TransactionValidator {
      *                       minimum weight magnitude: the minimal number of 9s that ought to appear at the end of the
      *                       transaction hash
      */
-    TransactionValidator(Tangle tangle, SnapshotProvider snapshotProvider, TipsViewModel tipsViewModel, TransactionRequester transactionRequester, ProtocolConfig protocolConfig) {
+    TransactionValidator(Tangle tangle, SnapshotProvider snapshotProvider, TipsViewModel tipsViewModel,
+                         TransactionRequester transactionRequester, ProtocolConfig protocolConfig,
+                         BroadcastQueue broadcastQueue) {
         this.tangle = tangle;
         this.snapshotProvider = snapshotProvider;
         this.tipsViewModel = tipsViewModel;
         this.transactionRequester = transactionRequester;
         this.newSolidThread = new Thread(spawnSolidTransactionsPropagation(), "Solid TX cascader");
+        this.broadcastQueue = broadcastQueue;
+
         setMwm(protocolConfig.isTestnet(), protocolConfig.getMwm());
     }
 
@@ -86,8 +90,7 @@ public class TransactionValidator {
      *
      * @see #spawnSolidTransactionsPropagation()
      */
-    public void init(BroadcastQueue broadcastQueue) {
-        this.broadcastQueue = broadcastQueue;
+    public void init() {
         newSolidThread.start();
     }
 

@@ -5,6 +5,7 @@ import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * <p>
@@ -75,6 +76,8 @@ public interface MilestoneService {
      * @throws MilestoneException if anything unexpected happens while updating the milestone index
      */
     void updateMilestoneIndexOfMilestoneTransactions(Hash milestoneHash, int newIndex) throws MilestoneException;
+
+    Set<Hash> getMissingMilestones(int index);
 
     /**
      * <p>

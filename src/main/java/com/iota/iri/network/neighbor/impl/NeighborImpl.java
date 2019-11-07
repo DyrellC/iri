@@ -156,6 +156,8 @@ public class NeighborImpl<T extends SelectableChannel & ByteChannel> implements 
             case TRANSACTION_GOSSIP:
                 txPipeline.process(this, msg);
                 break;
+            case MILESTONE_REQUEST:
+                txPipeline.replyWithMilestone(this, msg);
             default:
                 // do nothing
         }

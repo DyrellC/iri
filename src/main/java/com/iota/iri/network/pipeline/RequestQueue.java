@@ -7,10 +7,10 @@ import java.util.concurrent.BlockingQueue;
  * A queue for transactions intended to be submitted to the {@link BroadcastStage}
  * for processing
  */
-public class BroadcastQueue {
+public class RequestQueue {
 
     /** A blocking queue to store transactions for broadcasting */
-    private BlockingQueue<ProcessingContext> broadcastStageQueue = new ArrayBlockingQueue<>(100);
+    private BlockingQueue<ProcessingContext> requestStageQueue = new ArrayBlockingQueue<>(100);
 
     /**
      * Add transactions to the Broadcast Queue
@@ -18,10 +18,10 @@ public class BroadcastQueue {
      * @return True if added properly, False if not
      */
     public boolean add(ProcessingContext context) {
-       try {
-            this.broadcastStageQueue.put(context);
+        try {
+            this.requestStageQueue.put(context);
             return true;
-       } catch (Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }
@@ -31,6 +31,6 @@ public class BroadcastQueue {
      * @return BlockingQueue of all transactions left to be broadcasted
      */
     public BlockingQueue<ProcessingContext> get(){
-            return this.broadcastStageQueue;
+        return this.requestStageQueue;
     }
 }

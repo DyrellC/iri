@@ -3,9 +3,11 @@ package com.iota.iri.network.pipeline;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
+import com.iota.iri.model.persistables.Transaction;
 import com.iota.iri.network.FIFOCache;
 import com.iota.iri.network.TransactionCacheDigester;
 import com.iota.iri.network.protocol.Protocol;
+import com.iota.iri.storage.Tangle;
 import com.iota.iri.utils.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,14 +22,16 @@ public class PreProcessStage implements Stage {
 
     private static final Logger log = LoggerFactory.getLogger(PreProcessStage.class);
     private FIFOCache<Long, Hash> recentlySeenBytesCache;
+    private Tangle tangle;
 
     /**
      * Creates a new {@link PreProcessStage}.
      *
      * @param recentlySeenBytesCache The cache to use for checking whether a transaction is known
      */
-    public PreProcessStage(FIFOCache<Long, Hash> recentlySeenBytesCache) {
+    public PreProcessStage(FIFOCache<Long, Hash> recentlySeenBytesCache, Tangle tangle) {
         this.recentlySeenBytesCache = recentlySeenBytesCache;
+        this.tangle = tangle;
     }
 
     /**
@@ -72,11 +76,13 @@ public class PreProcessStage implements Stage {
 
         // received tx is known, therefore we can submit to the reply stage directly.
         if (receivedTxHash != null) {
-            // reply with a random tip by setting the request hash to the null hash
-            requestedHash = requestedHash.equals(receivedTxHash) ? Hash.NULL_HASH : requestedHash;
-            ctx.setNextStage(TransactionProcessingPipeline.Stage.REPLY);
-            ctx.setPayload(new ReplyPayload(payload.getOriginNeighbor(), requestedHash));
-            return ctx;
+            if(txExists(receivedTxHash)) {
+                // reply with a random tip by setting the request hash to the null hash
+                requestedHash = requestedHash.equals(receivedTxHash) ? Hash.NULL_HASH : requestedHash;
+                ctx.setNextStage(TransactionProcessingPipeline.Stage.REPLY);
+                ctx.setPayload(new ReplyPayload(payload.getOriginNeighbor(), requestedHash));
+                return ctx;
+            }
         }
 
         // convert tx byte data into trits representation once
@@ -89,5 +95,14 @@ public class PreProcessStage implements Stage {
                 requestedHash);
         ctx.setPayload(hashingStagePayload);
         return ctx;
+    }
+
+    private boolean txExists(Hash hash){
+        try{
+            boolean exists = tangle.exists(Transaction.class, hash);
+            return exists;
+        }catch(Exception e){
+            return false;
+        }
     }
 }

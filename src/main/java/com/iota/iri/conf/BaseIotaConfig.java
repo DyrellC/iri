@@ -3,6 +3,7 @@ package com.iota.iri.conf;
 import com.iota.iri.crypto.SpongeFactory;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
+import com.iota.iri.network.pipeline.RequestQueue;
 import com.iota.iri.utils.IotaUtils;
 import com.iota.iri.network.pipeline.BroadcastQueue;
 
@@ -11,6 +12,7 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.concurrent.BlockingQueue;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -58,6 +60,7 @@ public abstract class BaseIotaConfig implements IotaConfig {
     protected boolean dnsResolutionEnabled = Defaults.DNS_RESOLUTION_ENABLED;
     protected List<String> neighbors = Collections.EMPTY_LIST;
     protected BroadcastQueue broadcastQueue = new BroadcastQueue();
+    protected RequestQueue requestQueue = new RequestQueue();
 
     //IXI
     protected String ixiDir = Defaults.IXI_DIR;
@@ -177,6 +180,11 @@ public abstract class BaseIotaConfig implements IotaConfig {
     @Override
     public BroadcastQueue getBroadcastQueue() {
         return broadcastQueue;
+    }
+
+    @Override
+    public RequestQueue getRequestQueue() {
+        return requestQueue;
     }
 
     @JsonProperty

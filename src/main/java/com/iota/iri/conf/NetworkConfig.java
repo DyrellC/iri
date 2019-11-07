@@ -1,6 +1,7 @@
 package com.iota.iri.conf;
 
 import com.iota.iri.network.pipeline.BroadcastQueue;
+import com.iota.iri.network.pipeline.RequestQueue;
 
 import java.util.List;
 
@@ -95,6 +96,12 @@ public interface NetworkConfig extends Config {
      * @return The current {@link BroadcastQueue}
      */
     BroadcastQueue getBroadcastQueue();
+
+    /**
+     * @return The current {@link RequestQueue}
+     */
+    RequestQueue getRequestQueue();
+
 
     interface Descriptions {
         String NEIGHBORING_SOCKET_ADDRESS = "The address to bind the TCP server socket to.";

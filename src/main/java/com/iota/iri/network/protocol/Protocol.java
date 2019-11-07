@@ -54,6 +54,12 @@ public class Protocol {
      * The amount of bytes used for the requested transaction hash.
      */
     public final static int GOSSIP_REQUESTED_TX_HASH_BYTES_LENGTH = 49;
+
+    /**
+     * The amount of bytes used for the requested milestone index.
+     */
+    public final static int MILESTONE_REQUEST_INDEX_BYTES_LENGTH = 4;
+
     /**
      * The amount of bytes making up the non signature message fragment part of a transaction gossip payload.
      */
@@ -109,6 +115,15 @@ public class Protocol {
         buf.flip();
         return buf;
     }
+
+    public static ByteBuffer createMilestoneRequestPacket(byte[] requestedIndex){
+        ByteBuffer buf = ByteBuffer.allocate(ProtocolMessage.HEADER.getMaxLength() + MILESTONE_REQUEST_INDEX_BYTES_LENGTH);
+        addProtocolHeader(buf, ProtocolMessage.MILESTONE_REQUEST, (short) MILESTONE_REQUEST_INDEX_BYTES_LENGTH);
+        buf.put(requestedIndex);
+        buf.flip();
+        return buf;
+    }
+
 
     /**
      * Adds the protocol header to the given {@link ByteBuffer}.

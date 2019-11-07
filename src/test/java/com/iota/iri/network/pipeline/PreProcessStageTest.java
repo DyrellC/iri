@@ -9,6 +9,7 @@ import com.iota.iri.network.protocol.Protocol;
 
 import java.nio.ByteBuffer;
 
+import com.iota.iri.storage.Tangle;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -30,9 +31,12 @@ public class PreProcessStageTest {
     @Mock
     private NeighborImpl neighbor;
 
+    @Mock
+    private Tangle tangle;
+
     @Test
     public void processingAnUnknownTxDirectsToHashingStage() {
-        PreProcessStage stage = new PreProcessStage(recentlySeenBytesCache);
+        PreProcessStage stage = new PreProcessStage(recentlySeenBytesCache, tangle);
         Mockito.when(neighbor.getMetrics()).thenReturn(new NeighborMetricsImpl());
         ByteBuffer rawTxGossipData = SampleTransaction.createSampleTxBuffer();
         PreProcessPayload payload = new PreProcessPayload(neighbor, rawTxGossipData);
@@ -56,7 +60,7 @@ public class PreProcessStageTest {
 
     @Test
     public void processingAKnownTxDirectsToReplyStage() {
-        PreProcessStage stage = new PreProcessStage(recentlySeenBytesCache);
+        PreProcessStage stage = new PreProcessStage(recentlySeenBytesCache, tangle);
         Mockito.when(neighbor.getMetrics()).thenReturn(new NeighborMetricsImpl());
         ByteBuffer rawTxGossipData = SampleTransaction.createSampleTxBuffer();
         PreProcessPayload payload = new PreProcessPayload(neighbor, rawTxGossipData);
@@ -76,7 +80,7 @@ public class PreProcessStageTest {
 
     @Test
     public void theTransactionsPayloadGetsExpanded() {
-        PreProcessStage stage = new PreProcessStage(recentlySeenBytesCache);
+        PreProcessStage stage = new PreProcessStage(recentlySeenBytesCache, tangle);
         ByteBuffer truncatedTxGossipData = ByteBuffer.allocate(
                 SampleTransaction.TRUNCATED_SAMPLE_TX_BYTES.length + Protocol.GOSSIP_REQUESTED_TX_HASH_BYTES_LENGTH);
         truncatedTxGossipData.put(SampleTransaction.TRUNCATED_SAMPLE_TX_BYTES);

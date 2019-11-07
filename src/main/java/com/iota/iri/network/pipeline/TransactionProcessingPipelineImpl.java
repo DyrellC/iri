@@ -2,7 +2,9 @@ package com.iota.iri.network.pipeline;
 
 import com.iota.iri.TransactionValidator;
 import com.iota.iri.conf.NodeConfig;
+import com.iota.iri.controllers.MilestoneViewModel;
 import com.iota.iri.controllers.TipsViewModel;
+import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.crypto.batched.BatchedHasher;
 import com.iota.iri.crypto.batched.BatchedHasherFactory;
 import com.iota.iri.crypto.batched.HashRequest;
@@ -52,8 +54,9 @@ import org.slf4j.LoggerFactory;
 public class TransactionProcessingPipelineImpl implements TransactionProcessingPipeline {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionProcessingPipelineImpl.class);
-    private ExecutorService stagesThreadPool = Executors.newFixedThreadPool(6);
+    private ExecutorService stagesThreadPool = Executors.newFixedThreadPool(7);
 
+    private Tangle tangle;
     // stages of the protocol protocol
     private PreProcessStage preProcessStage;
     private ReceivedStage receivedStage;
@@ -62,11 +65,13 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
     private BroadcastStage broadcastStage;
     private BatchedHasher batchedHasher;
     private HashingStage hashingStage;
+    private RequestStage requestStage;
 
     private BlockingQueue<ProcessingContext> preProcessStageQueue = new ArrayBlockingQueue<>(100);
     private BlockingQueue<ProcessingContext> validationStageQueue = new ArrayBlockingQueue<>(100);
     private BlockingQueue<ProcessingContext> receivedStageQueue = new ArrayBlockingQueue<>(100);
     private BlockingQueue<ProcessingContext> replyStageQueue = new ArrayBlockingQueue<>(100);
+    private RequestQueue requestStageQueue;
     private BroadcastQueue broadcastStageQueue;
 
     /**
@@ -84,9 +89,10 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
     public TransactionProcessingPipelineImpl(NeighborRouter neighborRouter, NodeConfig config,
             TransactionValidator txValidator, Tangle tangle, SnapshotProvider snapshotProvider,
             TipsViewModel tipsViewModel, LatestMilestoneTracker latestMilestoneTracker,
-            TransactionRequester transactionRequester, BroadcastQueue broadcastStageQueue) {
+            TransactionRequester transactionRequester, BroadcastQueue broadcastStageQueue,
+            RequestQueue requestStageQueue) {
         FIFOCache<Long, Hash> recentlySeenBytesCache = new FIFOCache<>(config.getCacheSizeBytes());
-        this.preProcessStage = new PreProcessStage(recentlySeenBytesCache);
+        this.preProcessStage = new PreProcessStage(recentlySeenBytesCache, tangle);
         this.replyStage = new ReplyStage(neighborRouter, config, tangle, tipsViewModel, latestMilestoneTracker,
                 snapshotProvider, recentlySeenBytesCache);
         this.broadcastStage = new BroadcastStage(neighborRouter);
@@ -94,7 +100,10 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
         this.receivedStage = new ReceivedStage(tangle, txValidator, snapshotProvider, transactionRequester);
         this.batchedHasher = BatchedHasherFactory.create(BatchedHasherFactory.Type.BCTCURL81, 20);
         this.hashingStage = new HashingStage(batchedHasher);
+        this.requestStage = new RequestStage(neighborRouter);
+        this.requestStageQueue = requestStageQueue;
         this.broadcastStageQueue = broadcastStageQueue;
+        this.tangle = tangle;
     }
 
     @Override
@@ -105,6 +114,7 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
         addStage("reply", replyStageQueue, replyStage);
         addStage("received", receivedStageQueue, receivedStage);
         addStage("broadcast", broadcastStageQueue.get(), broadcastStage);
+        addStage("request", requestStageQueue.get(), requestStage);
     }
 
     /**
@@ -122,7 +132,9 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
                     ProcessingContext queueTake;
                     if(name.equals("broadcast")) {
                         queueTake = broadcastStageQueue.get().take();
-                    } else{
+                    } else if(name.equals("request")) {
+                        queueTake = requestStageQueue.get().take();
+                    } else {
                         queueTake = queue.take();
                     }
                     ProcessingContext ctx = stage.process(queueTake);
@@ -144,6 +156,9 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
                             break;
                         case BROADCAST:
                             broadcastStageQueue.add(ctx);
+                            break;
+                        case REQUEST:
+                            requestStageQueue.add(ctx);
                             break;
                         case ABORT:
                             break;
@@ -188,6 +203,21 @@ public class TransactionProcessingPipelineImpl implements TransactionProcessingP
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void replyWithMilestone(Neighbor neighbor, ByteBuffer data){
+        try{
+            int index = data.getInt();
+            MilestoneViewModel milestone = MilestoneViewModel.get(tangle, index);
+            if(milestone != null){
+                replyStageQueue.offer(new ProcessingContext(new ReplyPayload(neighbor, milestone.getHash())));
+            }
+
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+
     }
 
     @Override

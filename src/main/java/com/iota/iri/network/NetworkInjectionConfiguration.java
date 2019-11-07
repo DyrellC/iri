@@ -7,6 +7,8 @@ import com.iota.iri.TransactionValidator;
 import com.iota.iri.conf.IotaConfig;
 import com.iota.iri.controllers.TipsViewModel;
 import com.iota.iri.network.impl.TipsRequesterImpl;
+import com.iota.iri.network.pipeline.BroadcastQueue;
+import com.iota.iri.network.pipeline.RequestQueue;
 import com.iota.iri.network.pipeline.TransactionProcessingPipeline;
 import com.iota.iri.network.pipeline.TransactionProcessingPipelineImpl;
 import com.iota.iri.service.milestone.LatestMilestoneTracker;
@@ -46,10 +48,10 @@ public class NetworkInjectionConfiguration extends AbstractModule {
     TransactionProcessingPipeline provideTransactionProcessingPipeline(NeighborRouter neighborRouter,
             TransactionValidator txValidator, Tangle tangle, SnapshotProvider snapshotProvider,
             TipsViewModel tipsViewModel, LatestMilestoneTracker latestMilestoneTracker,
-            TransactionRequester transactionRequester) {
+            TransactionRequester transactionRequester, BroadcastQueue broadcastQueue, RequestQueue requestQueue) {
         return new TransactionProcessingPipelineImpl(neighborRouter, configuration, txValidator, tangle,
                 snapshotProvider, tipsViewModel, latestMilestoneTracker, transactionRequester,
-                configuration.getBroadcastQueue());
+                broadcastQueue, requestQueue);
     }
 
     @Singleton
@@ -57,5 +59,4 @@ public class NetworkInjectionConfiguration extends AbstractModule {
     NeighborRouter provideNeighborRouter(TransactionRequester transactionRequester, TransactionProcessingPipeline transactionProcessingPipeline) {
         return new NeighborRouterImpl(configuration, configuration, transactionRequester, transactionProcessingPipeline);
     }
-
 }

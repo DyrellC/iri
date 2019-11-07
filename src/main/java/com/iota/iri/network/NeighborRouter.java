@@ -96,6 +96,8 @@ public interface NeighborRouter {
     void gossipTransactionTo(Neighbor neighbor, TransactionViewModel tvm, boolean useHashOfTVM)
             throws Exception;
 
+    void requestMilestone(Neighbor neighbor, int index);
+
     /**
      * Shut downs the {@link NeighborRouter} and all currently open connections.
      */
