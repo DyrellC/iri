@@ -115,6 +115,13 @@ public class ReplyStage implements Stage {
                 neighbor.getMetrics().incrRandomTransactionRequestsCount();
                 Hash transactionPointer = getRandomTipPointer();
                 tvm = TransactionViewModel.fromHash(tangle, transactionPointer);
+
+                //To keep up the speed of requested transactions without starting a ping pong lock
+                try {
+                    neighborRouter.gossipTransactionTo(neighbor, tvm, false);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             } catch (Exception e) {
                 log.error("error loading random tip for reply", e);
                 ctx.setNextStage(TransactionProcessingPipeline.Stage.ABORT);
