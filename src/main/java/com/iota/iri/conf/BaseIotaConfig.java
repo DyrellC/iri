@@ -949,9 +949,9 @@ public abstract class BaseIotaConfig implements IotaConfig {
         boolean RESCAN_DB = false;
 
         // Cache
-        int MAX_TX_CACHE_SIZE = 1000;
-        int MAX_MILESTONE_CACHE_SIZE = 30;
-        int MAX_TX_CACHE_RELEASE_COUNT = 10;
+        int MAX_TX_CACHE_SIZE = 25000;
+        int MAX_MILESTONE_CACHE_SIZE = 50;
+        int MAX_TX_CACHE_RELEASE_COUNT = 1000;
         int MAX_MILESTONE_CACHE_RELEASE_COUNT = 10;
         int TX_CACHE_SIZE = MAX_TX_CACHE_SIZE;
         int MILESTONE_CACHE_SIZE = MAX_MILESTONE_CACHE_SIZE;
