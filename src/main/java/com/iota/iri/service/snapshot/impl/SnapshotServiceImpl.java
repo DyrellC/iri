@@ -244,8 +244,9 @@ public class SnapshotServiceImpl implements SnapshotService {
                 replayMilestones(snapshot, targetMilestone.index());
             } else {
                 snapshot = snapshotProvider.getLatestSnapshot().clone();
-
-                rollBackMilestones(snapshot, targetMilestone.index() + 1);
+		if (distanceFromLatestSnapshot != 0) {
+                    rollBackMilestones(snapshot, targetMilestone.index() + 1);
+                }
             }
         } finally {
             snapshotProvider.getInitialSnapshot().unlockRead();

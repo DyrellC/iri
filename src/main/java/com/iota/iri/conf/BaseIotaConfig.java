@@ -566,12 +566,6 @@ public abstract class BaseIotaConfig implements IotaConfig {
     @JsonProperty
     @Parameter(names = {"--local-snapshots-depth"}, description = SnapshotConfig.Descriptions.LOCAL_SNAPSHOTS_DEPTH)
     protected void setLocalSnapshotsDepth(int localSnapshotsDepth) {
-        if (localSnapshotsDepth < Defaults.LOCAL_SNAPSHOTS_DEPTH_MIN) {
-            throw new ParameterException("LOCAL_SNAPSHOTS_DEPTH should be at least "
-                    + Defaults.LOCAL_SNAPSHOTS_DEPTH_MIN
-                    + "(found " + localSnapshotsDepth + ")");
-        }
-
         this.localSnapshotsDepth = localSnapshotsDepth;
     }
 
