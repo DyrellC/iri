@@ -911,14 +911,13 @@ public abstract class BaseIotaConfig implements IotaConfig {
         boolean LOCAL_SNAPSHOTS_ENABLED = true;
         boolean LOCAL_SNAPSHOTS_PRUNING_ENABLED = false;
 
-        int LOCAL_SNAPSHOTS_PRUNING_DELAY = 40000;
-        int LOCAL_SNAPSHOTS_PRUNING_DELAY_MIN = 10000;
-        int LOCAL_SNAPSHOTS_INTERVAL_SYNCED = 10;
-        int LOCAL_SNAPSHOTS_INTERVAL_UNSYNCED = 1000;
-        int LOCAL_SNAPSHOTS_DEPTH = 100;
-        int LOCAL_SNAPSHOTS_DEPTH_MIN = 100;
         String SPENT_ADDRESSES_DB_PATH = "spent-addresses-db";
         String SPENT_ADDRESSES_DB_LOG_PATH = "spent-addresses-log";
+        int LOCAL_SNAPSHOTS_PRUNING_DELAY = 0;
+        int LOCAL_SNAPSHOTS_PRUNING_DELAY_MIN = 0;
+        int LOCAL_SNAPSHOTS_INTERVAL_SYNCED = 1;
+        int LOCAL_SNAPSHOTS_INTERVAL_UNSYNCED = 1;
+        int LOCAL_SNAPSHOTS_DEPTH = 0;
 
         String LOCAL_SNAPSHOTS_BASE_PATH = "mainnet";
         String SNAPSHOT_FILE = "/snapshotMainnet.txt";
