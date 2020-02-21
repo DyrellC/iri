@@ -243,7 +243,7 @@ public class LocalSnapshotManagerImpl implements LocalSnapshotManager {
         int snapshotIndex = snapshotProvider.getInitialSnapshot().getIndex();
         // -1 means we can't prune, smaller than snapshotIndex because we prune until index + 1
         return pruningMilestoneIndex > 0 
-                && pruningMilestoneIndex < snapshotIndex 
+                && pruningMilestoneIndex <= snapshotIndex
                 && !transactionPruner.hasActiveJobFor(MilestonePrunerJob.class);
     }
 
