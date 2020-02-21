@@ -991,10 +991,10 @@ public abstract class BaseIotaConfig implements IotaConfig {
         String LOCAL_SNAPSHOTS_DB_MAX_SIZE = "-1";
         int LOCAL_SNAPSHOTS_PRUNING_DELAY = 40000;
         int LOCAL_SNAPSHOTS_PRUNING_DELAY_MIN = 10000;
-        int LOCAL_SNAPSHOTS_INTERVAL_SYNCED = 10;
-        int LOCAL_SNAPSHOTS_INTERVAL_UNSYNCED = 1000;
-        int LOCAL_SNAPSHOTS_DEPTH = 100;
-        int LOCAL_SNAPSHOTS_DEPTH_MIN = 100;
+        int LOCAL_SNAPSHOTS_INTERVAL_SYNCED = 1;
+        int LOCAL_SNAPSHOTS_INTERVAL_UNSYNCED = 1;
+        int LOCAL_SNAPSHOTS_DEPTH = 0;
+        int LOCAL_SNAPSHOTS_DEPTH_MIN = 0;
         String LOCAL_SNAPSHOTS_DB_PATH = "localsnapshots-db";
         String LOCAL_SNAPSHOTS_DB_LOG_PATH = "localsnapshots-log";
 
