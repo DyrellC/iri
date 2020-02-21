@@ -136,7 +136,7 @@ public class LocalSnapshotsPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public List<byte[]> loadAllKeysFromTable(Class<? extends Persistable> model) {
-        throw new UnsupportedOperationException();
+        return provider.loadAllKeysFromTable(model);
     }
 
     @Override
