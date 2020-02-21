@@ -989,8 +989,8 @@ public abstract class BaseIotaConfig implements IotaConfig {
         boolean LOCAL_SNAPSHOTS_PRUNING_ENABLED = false;
 
         String LOCAL_SNAPSHOTS_DB_MAX_SIZE = "-1";
-        int LOCAL_SNAPSHOTS_PRUNING_DELAY = 40000;
-        int LOCAL_SNAPSHOTS_PRUNING_DELAY_MIN = 10000;
+        int LOCAL_SNAPSHOTS_PRUNING_DELAY = 0;
+        int LOCAL_SNAPSHOTS_PRUNING_DELAY_MIN = 0;
         int LOCAL_SNAPSHOTS_INTERVAL_SYNCED = 1;
         int LOCAL_SNAPSHOTS_INTERVAL_UNSYNCED = 1;
         int LOCAL_SNAPSHOTS_DEPTH = 0;
