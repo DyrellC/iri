@@ -107,7 +107,7 @@ public class SpentAddressesServiceImpl implements SpentAddressesService {
         });
     }
 
-    private boolean wasTransactionSpentFrom(TransactionViewModel tx) throws Exception {
+    public boolean wasTransactionSpentFrom(TransactionViewModel tx) throws Exception {
         Optional<Hash> tailFromTx = tailFinder.findTailFromTx(tx);
         if (tailFromTx.isPresent() && tx.value() < 0) {
             // Transaction is confirmed
