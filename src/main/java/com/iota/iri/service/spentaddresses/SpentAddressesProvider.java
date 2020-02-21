@@ -1,5 +1,6 @@
 package com.iota.iri.service.spentaddresses;
 
+import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 
 import java.util.Collection;
@@ -51,5 +52,4 @@ public interface SpentAddressesProvider {
      * @throws SpentAddressesException if we failed to create a file at the designated location
      */
     void init(boolean assertSpentAddressesExistence) throws SpentAddressesException;
-
 }

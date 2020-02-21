@@ -36,4 +36,6 @@ public interface SpentAddressesService {
      *                     Non spent transactions will be filtered out when persisting
      */
     void persistValidatedSpentAddressesAsync(Collection<TransactionViewModel> transactions);
+
+    boolean wasTransactionSpentFrom(TransactionViewModel tx) throws Exception;
 }

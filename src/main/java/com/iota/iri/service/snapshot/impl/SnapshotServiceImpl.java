@@ -401,8 +401,7 @@ public class SnapshotServiceImpl implements SnapshotService {
 
         MilestoneViewModel targetMilestone;
         try {
-            targetMilestone = MilestoneViewModel.findClosestPrevMilestone(tangle, targetMilestoneIndex,
-                    snapshotProvider.getInitialSnapshot().getIndex());
+            targetMilestone = MilestoneViewModel.get(tangle, targetMilestoneIndex);
         } catch (Exception e) {
             throw new SnapshotException("could not load the target milestone", e);
         }
