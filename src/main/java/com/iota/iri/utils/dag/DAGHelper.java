@@ -109,6 +109,7 @@ public class DAGHelper {
                             currentTransactionConsumer.accept(currentTransaction);
                         }
 
+                        // only add approvers to queue if they are not present to avoid oom
                         ApproveeViewModel.load(tangle, currentTransactionHash).getHashes().forEach(hash -> {
                             if(!transactionsToExamine.contains(hash)){
                                 transactionsToExamine.add(hash);
@@ -189,6 +190,7 @@ public class DAGHelper {
                             currentTransactionConsumer.accept(currentTransaction);
                         }
 
+                        // only add to the transactions to examine queue if it is not already present to avoid oom
                         if(!transactionsToExamine.contains(currentTransaction.getBranchTransactionHash())) {
                             transactionsToExamine.add(currentTransaction.getBranchTransactionHash());
                         }
