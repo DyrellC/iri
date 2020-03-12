@@ -399,7 +399,10 @@ public class TransactionValidator {
      */
     private boolean quietQuickSetSolid(TransactionViewModel transactionViewModel) {
         try {
-            return quickSetSolid(transactionViewModel);
+            if(!quickSetSolid(transactionViewModel)){
+                return checkSolidity(transactionViewModel.getHash(), 50000);
+            }
+            return true;
         } catch (Exception e) {
             log.error(e.getMessage(), e);
             return false;
