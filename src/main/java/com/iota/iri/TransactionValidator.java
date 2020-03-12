@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.iota.iri.controllers.TransactionViewModel.*;
@@ -52,6 +53,8 @@ public class TransactionValidator {
     private final Object cascadeSync = new Object();
     private final Set<Hash> newSolidTransactionsOne = new LinkedHashSet<>();
     private final Set<Hash> newSolidTransactionsTwo = new LinkedHashSet<>();
+
+    private final Queue<Hash> checkSolidityPool = new ConcurrentLinkedQueue<>();
 
     /**
      * Constructor for Tangle Validator
@@ -302,6 +305,7 @@ public class TransactionValidator {
         return () -> {
             while(!shuttingDown.get()) {
                 propagateSolidTransactions();
+                checkUnsolidTransactions();
                 try {
                     Thread.sleep(SOLID_SLEEP_TIME);
                 } catch (InterruptedException e) {
@@ -310,6 +314,18 @@ public class TransactionValidator {
                 }
             }
         };
+    }
+
+
+    private void checkUnsolidTransactions() {
+        int iteration = 0;
+        while(checkSolidityPool.peek() != null && iteration < 10000){
+            try{
+                checkSolidity(checkSolidityPool.poll());
+            } catch(Exception e) {
+                log.warn("Error processing transactions through checkSolidity {}", e.getMessage());
+            }
+        }
     }
 
     /**
@@ -399,8 +415,8 @@ public class TransactionValidator {
      */
     private boolean quietQuickSetSolid(TransactionViewModel transactionViewModel) {
         try {
-            if(!quickSetSolid(transactionViewModel)){
-                return checkSolidity(transactionViewModel.getHash(), 50000);
+            if(!quickSetSolid(transactionViewModel) && !checkSolidityPool.contains(transactionViewModel.getHash())){
+                checkSolidityPool.add(transactionViewModel.getHash());
             }
             return true;
         } catch (Exception e) {
