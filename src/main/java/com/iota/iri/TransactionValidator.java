@@ -55,6 +55,7 @@ public class TransactionValidator {
     private final Set<Hash> newSolidTransactionsTwo = new LinkedHashSet<>();
 
     private final Queue<Hash> checkSolidityPool = new ConcurrentLinkedQueue<>();
+    private static final int SOLIDITY_PROCESSING_MAX =10000;
 
     /**
      * Constructor for Tangle Validator
@@ -323,9 +324,10 @@ public class TransactionValidator {
 
     private void checkUnsolidTransactions() {
         int iteration = 0;
-        while(checkSolidityPool.peek() != null && iteration < 10000){
+        while(checkSolidityPool.peek() != null && iteration < SOLIDITY_PROCESSING_MAX){
             try{
                 checkSolidity(checkSolidityPool.poll());
+                iteration += 1;
             } catch(Exception e) {
                 log.warn("Error processing transactions through checkSolidity {}", e.getMessage());
             }
