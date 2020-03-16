@@ -289,11 +289,16 @@ public class TransactionValidator {
     public void addSolidTransaction(Hash hash) {
         synchronized (cascadeSync) {
             if (useFirst.get()) {
-                newSolidTransactionsOne.add(hash);
+                if(!newSolidTransactionsOne.contains(hash)) {
+                    newSolidTransactionsOne.add(hash);
+                }
             } else {
-                newSolidTransactionsTwo.add(hash);
+                if(!newSolidTransactionsTwo.contains(hash)) {
+                    newSolidTransactionsTwo.add(hash);
+                }
             }
         }
+        checkSolidityPool.remove(hash);
     }
 
     /**
