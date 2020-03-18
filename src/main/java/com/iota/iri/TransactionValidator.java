@@ -424,7 +424,7 @@ public class TransactionValidator {
         try {
             if(!quickSetSolid(transactionViewModel) && !checkSolidityPool.contains(transactionViewModel.getHash())){
                 checkSolidityPool.add(transactionViewModel.getHash());
-                return false;
+                return checkSolidity(transactionViewModel.getHash(), 1000);
             }
             return true;
         } catch (Exception e) {
