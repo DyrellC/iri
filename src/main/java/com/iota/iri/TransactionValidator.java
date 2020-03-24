@@ -327,7 +327,10 @@ public class TransactionValidator {
         int iteration = 0;
         while(checkSolidityPool.peek() != null && iteration < SOLIDITY_PROCESSING_MAX){
             try{
-                checkSolidity(checkSolidityPool.poll());
+                Hash unsolidTransaction = checkSolidityPool.poll();
+                if(!checkSolidity(unsolidTransaction)){
+                    checkSolidityPool.add(unsolidTransaction);
+                }
                 iteration += 1;
             } catch(Exception e) {
                 log.warn("Error processing transactions through checkSolidity {}", e.getMessage());
