@@ -329,12 +329,22 @@ public class TransactionValidator {
             try{
                 Hash unsolidTransaction = checkSolidityPool.poll();
                 if(!checkSolidity(unsolidTransaction)){
-                    checkSolidityPool.add(unsolidTransaction);
+                    addToUnsolidPool(unsolidTransaction);
                 }
                 iteration += 1;
             } catch(Exception e) {
                 log.warn("Error processing transactions through checkSolidity {}", e.getMessage());
             }
+        }
+    }
+
+    private void addToUnsolidPool(Hash transactionHash) {
+        if(checkSolidityPool.size() > 1000){
+            checkSolidityPool.remove();
+        }
+
+        if(!checkSolidityPool.contains(transactionHash)){
+            checkSolidityPool.add(transactionHash);
         }
     }
 
@@ -425,8 +435,8 @@ public class TransactionValidator {
      */
     private boolean quietQuickSetSolid(TransactionViewModel transactionViewModel) {
         try {
-            if(!quickSetSolid(transactionViewModel) && !checkSolidityPool.contains(transactionViewModel.getHash())){
-                checkSolidityPool.add(transactionViewModel.getHash());
+            if(!quickSetSolid(transactionViewModel)){
+                addToUnsolidPool(transactionViewModel.getHash());
                 return checkSolidity(transactionViewModel.getHash(), 1000);
             }
             return true;
