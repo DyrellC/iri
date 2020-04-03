@@ -25,6 +25,9 @@ public class SolidifyStageTest {
     private Hash cooAddress;
 
     @Mock
+    private Hash transactionAddress;
+
+    @Mock
     private TipsViewModel tipsViewModel;
 
     @Mock
@@ -82,6 +85,7 @@ public class SolidifyStageTest {
         Mockito.when(tvm.isSolid()).thenReturn(false);
         Mockito.when(transactionSolidifier.quickSetSolid(tvm)).thenReturn(false);
         Mockito.when(tipsViewModel.getRandomSolidTipHash()).thenReturn(tipHash);
+        Mockito.when(tvm.getAddressHash()).thenReturn(transactionAddress);
 
         SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle, cooAddress);
         SolidifyPayload solidifyPayload = new SolidifyPayload(null, tvm);
@@ -102,6 +106,7 @@ public class SolidifyStageTest {
         Mockito.when(tvm.isSolid()).thenReturn(false);
         Mockito.when(transactionSolidifier.quickSetSolid(tvm)).thenReturn(false);
         Mockito.when(tipsViewModel.getRandomSolidTipHash()).thenReturn(null);
+        Mockito.when(tvm.getAddressHash()).thenReturn(transactionAddress);
 
         SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle, cooAddress);
         SolidifyPayload solidifyPayload = new SolidifyPayload(null, tvm);
