@@ -22,6 +22,9 @@ public class SolidifyStageTest {
     private Tangle tangle;
 
     @Mock
+    private Hash cooAddress;
+
+    @Mock
     private TipsViewModel tipsViewModel;
 
     @Mock
@@ -41,7 +44,7 @@ public class SolidifyStageTest {
         Mockito.when(tvm.isSolid()).thenReturn(true);
         Mockito.when(tvm.getHash()).thenReturn(originalHash);
 
-        SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle);
+        SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle, cooAddress);
         SolidifyPayload solidifyPayload = new SolidifyPayload(null, tvm);
         ProcessingContext ctx = new ProcessingContext(solidifyPayload);
 
@@ -60,7 +63,7 @@ public class SolidifyStageTest {
         Mockito.when(transactionSolidifier.quickSetSolid(tvm)).thenReturn(true);
         Mockito.when(tvm.getHash()).thenReturn(originalHash);
 
-        SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle);
+        SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle, cooAddress);
         SolidifyPayload solidifyPayload = new SolidifyPayload(null, tvm);
         ProcessingContext ctx = new ProcessingContext(solidifyPayload);
 
@@ -80,7 +83,7 @@ public class SolidifyStageTest {
         Mockito.when(transactionSolidifier.quickSetSolid(tvm)).thenReturn(false);
         Mockito.when(tipsViewModel.getRandomSolidTipHash()).thenReturn(tipHash);
 
-        SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle);
+        SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle, cooAddress);
         SolidifyPayload solidifyPayload = new SolidifyPayload(null, tvm);
         ProcessingContext ctx = new ProcessingContext(solidifyPayload);
 
@@ -100,7 +103,7 @@ public class SolidifyStageTest {
         Mockito.when(transactionSolidifier.quickSetSolid(tvm)).thenReturn(false);
         Mockito.when(tipsViewModel.getRandomSolidTipHash()).thenReturn(null);
 
-        SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle);
+        SolidifyStage solidifyStage = new SolidifyStage(transactionSolidifier, tipsViewModel, tangle, cooAddress);
         SolidifyPayload solidifyPayload = new SolidifyPayload(null, tvm);
         ProcessingContext ctx = new ProcessingContext(solidifyPayload);
 
