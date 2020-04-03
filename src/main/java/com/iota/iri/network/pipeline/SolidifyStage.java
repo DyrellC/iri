@@ -24,6 +24,7 @@ public class SolidifyStage implements Stage {
     private TransactionSolidifier txSolidifier;
     private TipsViewModel tipsViewModel;
     private Tangle tangle;
+    private Hash cooAddress;
 
     /**
      * Constructor for the {@link SolidifyStage}.
@@ -32,10 +33,11 @@ public class SolidifyStage implements Stage {
      * @param tipsViewModel     Used for broadcasting random solid tips if the subject transaction is unsolid
      * @param tangle            A reference to the nodes DB
      */
-    public SolidifyStage(TransactionSolidifier txSolidifier, TipsViewModel tipsViewModel, Tangle tangle){
+    public SolidifyStage(TransactionSolidifier txSolidifier, TipsViewModel tipsViewModel, Tangle tangle, Hash coo){
         this.txSolidifier = txSolidifier;
         this.tipsViewModel = tipsViewModel;
         this.tangle = tangle;
+        this.cooAddress = coo;
     }
 
     /**
@@ -53,7 +55,7 @@ public class SolidifyStage implements Stage {
             SolidifyPayload payload = (SolidifyPayload) ctx.getPayload();
             TransactionViewModel tvm = payload.getTransaction();
 
-            if (tvm.isSolid() || txSolidifier.quickSetSolid(tvm)) {
+            if (tvm.isSolid() || txSolidifier.quickSetSolid(tvm) || tvm.getAddressHash().equals(cooAddress)) {
                 // If the transaction is in the solidifier broadcast queue, remove it as it will be broadcast now
                 txSolidifier.clearFromBroadcastQueue(tvm);
                 ctx.setNextStage(TransactionProcessingPipeline.Stage.BROADCAST);

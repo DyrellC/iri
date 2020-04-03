@@ -1,5 +1,7 @@
 package com.iota.iri.conf;
 
+import com.iota.iri.model.Hash;
+
 import java.util.List;
 
 /**
@@ -88,6 +90,8 @@ public interface NetworkConfig extends Config {
      * @return {@value NetworkConfig.Descriptions#CACHE_SIZE_BYTES}
      */
     int getCacheSizeBytes();
+
+    Hash getCoordinator();
 
     interface Descriptions {
         String NEIGHBORING_SOCKET_ADDRESS = "The address to bind the TCP server socket to.";
