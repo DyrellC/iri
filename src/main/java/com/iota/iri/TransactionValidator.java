@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.iota.iri.controllers.TransactionViewModel.*;
@@ -53,6 +54,8 @@ public class TransactionValidator {
     private final Object cascadeSync = new Object();
     private final Set<Hash> newSolidTransactionsOne = new LinkedHashSet<>();
     private final Set<Hash> newSolidTransactionsTwo = new LinkedHashSet<>();
+
+    private final Queue<Hash> transactionPropagationQueue = new ConcurrentLinkedQueue<>();
 
     private MessageQueueProvider zmqMessageProvider;
 
@@ -293,12 +296,15 @@ public class TransactionValidator {
     }
 
     public void addSolidTransaction(Hash hash) {
-        synchronized (cascadeSync) {
+        /*synchronized (cascadeSync) {
             if (useFirst.get()) {
                 newSolidTransactionsOne.add(hash);
             } else {
                 newSolidTransactionsTwo.add(hash);
             }
+        }*/
+        if(!transactionPropagationQueue.contains(hash)){
+            transactionPropagationQueue.add(hash);
         }
 
         log.info("Added solid transaction " + hash + " to propagation queue");
@@ -330,10 +336,11 @@ public class TransactionValidator {
      */
     @VisibleForTesting
     void propagateSolidTransactions() {
-        Set<Hash> newSolidHashes = new HashSet<>();
+        Set<Hash> newSolidHashes = new HashSet<>(transactionPropagationQueue);
+        log.info("Size of solid transactions: " + newSolidHashes.size());
         useFirst.set(!useFirst.get());
         //synchronized to make sure no one is changing the newSolidTransactions collections during addAll
-        synchronized (cascadeSync) {
+        /*synchronized (cascadeSync) {
             //We are using a collection that doesn't get updated by other threads
             if (useFirst.get()) {
                 newSolidHashes.addAll(newSolidTransactionsTwo);
@@ -342,7 +349,7 @@ public class TransactionValidator {
                 newSolidHashes.addAll(newSolidTransactionsOne);
                 newSolidTransactionsOne.clear();
             }
-        }
+        }*/
         Iterator<Hash> cascadeIterator = newSolidHashes.iterator();
         while(cascadeIterator.hasNext() && !shuttingDown.get()) {
             try {
@@ -361,6 +368,7 @@ public class TransactionValidator {
                 log.error("Error while propagating solidity upwards", e);
             }
         }
+        newSolidHashes.forEach(transactionPropagationQueue::remove);
     }
 
 
@@ -483,7 +491,8 @@ public class TransactionValidator {
 
     @VisibleForTesting
     boolean isNewSolidTxSetsEmpty () {
-        return newSolidTransactionsOne.isEmpty() && newSolidTransactionsTwo.isEmpty();
+        //return newSolidTransactionsOne.isEmpty() && newSolidTransactionsTwo.isEmpty();
+        return transactionPropagationQueue.isEmpty();
     }
 
     /**
