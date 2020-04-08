@@ -15,6 +15,7 @@ import com.iota.iri.storage.Tangle;
 import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
 import com.iota.iri.utils.Converter;
 
+import com.iota.iri.zmq.MessageQueueProvider;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mock;
@@ -27,8 +28,8 @@ import static com.iota.iri.TransactionTestUtils.getTransactionTritsWithTrunkAndB
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 public class TransactionValidatorTest {
 
@@ -37,6 +38,9 @@ public class TransactionValidatorTest {
   private static final TemporaryFolder logFolder = new TemporaryFolder();
   private static Tangle tangle;
   private static TransactionValidator txValidator;
+
+  @Mock
+  private MessageQueueProvider messageQueueProvider;
 
   @Rule
   public MockitoRule mockitoRule = MockitoJUnit.rule();
@@ -65,10 +69,12 @@ public class TransactionValidatorTest {
   @Before
   public void setUpEach() {
     when(snapshotProvider.getInitialSnapshot()).thenReturn(SnapshotMockUtils.createSnapshot());
+    doNothing().when(messageQueueProvider).publish(any());
     TipsViewModel tipsViewModel = new TipsViewModel();
     TransactionRequester txRequester = new TransactionRequester(tangle, snapshotProvider);
     txValidator = new TransactionValidator(tangle, snapshotProvider, tipsViewModel, txRequester, new MainnetConfig());
     txValidator.setMwm(false, MAINNET_MWM);
+    txValidator.setZmqMessageProvider(messageQueueProvider);
   }
 
   @Test
