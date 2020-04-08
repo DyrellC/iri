@@ -25,6 +25,7 @@ import com.iota.iri.service.transactionpruning.TransactionPruner;
 import com.iota.iri.storage.*;
 import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
 import com.iota.iri.utils.Pair;
+import com.iota.iri.zmq.MessageQueueProvider;
 import com.iota.iri.zmq.ZmqMessageQueueProvider;
 
 import java.util.List;
@@ -186,7 +187,9 @@ public class Iota {
         localSnapshotsDb.init();
         initDependencies(); // remainder of injectDependencies method (contained init code)
 
-        initializeTangle();
+        MessageQueueProvider zmqMessageProvider = new ZmqMessageQueueProvider(configuration);
+
+        initializeTangle(zmqMessageProvider);
         tangle.init();
 
         if (configuration.isRescanDb()) {
@@ -200,6 +203,7 @@ public class Iota {
         }
 
         transactionValidator.init();
+        transactionValidator.setZmqMessageProvider(zmqMessageProvider);
 
         txPipeline.start();
         neighborRouter.start();
@@ -278,7 +282,7 @@ public class Iota {
     }
 
 
-    private void initializeTangle() {
+    private void initializeTangle(MessageQueueProvider messageQueueProvider) {
         switch (configuration.getMainDb()) {
             case "rocksdb": {
                 tangle.addPersistenceProvider(createRocksDbProvider(
@@ -297,7 +301,8 @@ public class Iota {
         }
         tangle.setCacheManager(cacheManager);
         if (configuration.isZmqEnabled()) {
-            tangle.addMessageQueueProvider(new ZmqMessageQueueProvider(configuration));
+            tangle.addMessageQueueProvider(messageQueueProvider);
+
         }
     }
 

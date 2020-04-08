@@ -12,6 +12,7 @@ import com.iota.iri.model.TransactionHash;
 import com.iota.iri.network.TransactionRequester;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.storage.Tangle;
+import com.iota.iri.zmq.MessageQueueProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,8 @@ public class TransactionValidator {
     private final Set<Hash> newSolidTransactionsOne = new LinkedHashSet<>();
     private final Set<Hash> newSolidTransactionsTwo = new LinkedHashSet<>();
 
+    private MessageQueueProvider zmqMessageProvider;
+
     /**
      * Constructor for Tangle Validator
      *
@@ -87,6 +90,10 @@ public class TransactionValidator {
      */
     public void init() {
         newSolidThread.start();
+    }
+
+    public void setZmqMessageProvider(MessageQueueProvider zmqMessageProvider){
+        this.zmqMessageProvider = zmqMessageProvider;
     }
 
     @VisibleForTesting
@@ -277,6 +284,7 @@ public class TransactionValidator {
             }
         }
         if (solid) {
+            logAndPublishCheckSolidityResult(hash, solid, analyzedHashes);
             updateSolidTransactions(tangle, snapshotProvider.getInitialSnapshot(), analyzedHashes);
             analyzedHashes.forEach(this::addSolidTransaction);
         }
@@ -292,6 +300,9 @@ public class TransactionValidator {
                 newSolidTransactionsTwo.add(hash);
             }
         }
+
+        log.info("Added solid transaction " + hash + " to propagation queue");
+        zmqMessageProvider.publish("ast %s", hash);
     }
 
     /**
@@ -399,6 +410,7 @@ public class TransactionValidator {
      */
     private boolean quietQuickSetSolid(TransactionViewModel transactionViewModel) {
         try {
+            log.info("Trying to quietQuickSetSolid " + transactionViewModel.getHash() + " via propagation");
             return quickSetSolid(transactionViewModel);
         } catch (Exception e) {
             log.error(e.getMessage(), e);
@@ -425,11 +437,30 @@ public class TransactionValidator {
             if(solid) {
                 transactionViewModel.updateSolid(true);
                 transactionViewModel.updateHeights(tangle, snapshotProvider.getInitialSnapshot());
+                logAndPublishPropagationSolidificationResult(transactionViewModel.getHash(), true);
                 return true;
             }
         }
+        logAndPublishPropagationSolidificationResult(transactionViewModel.getHash(), false);
         return false;
     }
+
+    private void logAndPublishPropagationSolidificationResult(Hash transaction, boolean solid){
+        log.info("QuickSetSolid " + transaction + ": " + solid);
+        zmqMessageProvider.publish("qss %s %s", transaction, solid);
+    }
+
+    private void logAndPublishCheckSolidityResult(Hash transaction, boolean solid, Set<Hash> analyzedHashes){
+            try {
+                analyzedHashes.forEach(hash -> {
+                    log.info(hash + " solidified by checking solidity of " + transaction);
+                    zmqMessageProvider.publish("cs %s %s %s", hash, solid, transaction);
+                });
+            } catch(Exception e) {
+                log.info("Error logging solidity of analyzed hashes ", e);
+            }
+    }
+
 
     /**
      * If the the {@code approvee} is missing, request it from a neighbor.

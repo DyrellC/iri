@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.sql.Timestamp;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -420,11 +421,12 @@ public class MilestoneServiceImpl implements MilestoneService {
         }
 
         tangle.publish("%s %s %d sn", transaction.getAddressHash(), transaction.getHash(), index);
-        tangle.publish("sn %d %s %s %s %s %s", index, transaction.getHash(), transaction.getAddressHash(),
+        tangle.publish("sn %d %s %s %s %s %s %s", index, transaction.getHash(), transaction.getAddressHash(),
                 transaction.getTrunkTransactionHash(), transaction.getBranchTransactionHash(),
-                transaction.getBundleHash());
+                transaction.getBundleHash(), new Timestamp(System.currentTimeMillis()));
         tangle.publish("sn_trytes %s %s %d", Converter.trytes(transaction.trits()), transaction.getHash(),
                 transaction.getTransaction().snapshot.get());
+        log.info("Tx " + transaction.getHash() + "solidified via milestone #" + index);
     }
 
     /**

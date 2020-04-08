@@ -934,7 +934,7 @@ public abstract class BaseIotaConfig implements IotaConfig {
         int ZMQ_THREADS = 1;
         boolean ZMQ_ENABLE_IPC = false;
         String ZMQ_IPC = "ipc://iri";
-        boolean ZMQ_ENABLE_TCP = false;
+        boolean ZMQ_ENABLE_TCP = true;
         int ZMQ_PORT = 5556;
 
         //TipSel
