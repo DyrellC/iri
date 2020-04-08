@@ -60,20 +60,20 @@ public class WalkValidatorImpl implements WalkValidator {
 
         TransactionViewModel transactionViewModel = TransactionViewModel.fromHash(tangle, transactionHash);
         if (transactionViewModel.getType() == TransactionViewModel.PREFILLED_SLOT) {
-            log.debug("Validation failed: {} is missing in db", transactionHash);
+            log.info("Validation failed: {} is missing in db", transactionHash);
             return false;
         } else if (transactionViewModel.getCurrentIndex() != 0) {
-            log.debug("Validation failed: {} not a tail", transactionHash);
+            log.info("Validation failed: {} not a tail", transactionHash);
             return false;
         } else if (!transactionViewModel.isSolid()) {
-            log.debug("Validation failed: {} is not solid", transactionHash);
+            log.info("Validation failed: {} is not solid", transactionHash);
             return false;
         } else if (belowMaxDepth(transactionViewModel.getHash(),
                 snapshotProvider.getLatestSnapshot().getIndex() - config.getMaxDepth())) {
-            log.debug("Validation failed: {} is below max depth", transactionHash);
+            log.info("Validation failed: {} is below max depth", transactionHash);
             return false;
         } else if (!ledgerService.isBalanceDiffConsistent(myApprovedHashes, myDiff, transactionViewModel.getHash())) {
-            log.debug("Validation failed: {} is not consistent", transactionHash);
+            log.info("Validation failed: {} is not consistent", transactionHash);
             return false;
         }
         return true;

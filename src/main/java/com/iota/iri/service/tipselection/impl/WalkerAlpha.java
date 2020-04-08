@@ -164,6 +164,7 @@ public class WalkerAlpha implements Walker {
 
     private Optional<Hash> findTailIfValid(Hash transactionHash, WalkValidator validator) throws Exception {
         Optional<Hash> tailHash = tailFinder.findTail(transactionHash);
+        log.info("Walking to " + tailHash);
         if (tailHash.isPresent() && validator.isValid(tailHash.get())) {
                 return tailHash;
         }
