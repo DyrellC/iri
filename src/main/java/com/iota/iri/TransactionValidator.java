@@ -287,9 +287,10 @@ public class TransactionValidator {
             }
         }
         if (solid) {
-            logAndPublishCheckSolidityResult(hash, solid, analyzedHashes);
             updateSolidTransactions(tangle, snapshotProvider.getInitialSnapshot(), analyzedHashes);
-            analyzedHashes.forEach(this::addSolidTransaction);
+            logAndPublishCheckSolidityResult(hash, solid, analyzedHashes);
+
+            //analyzedHashes.forEach(this::addSolidTransaction);
         }
         analyzedHashes.clear();
         return solid;
@@ -463,6 +464,7 @@ public class TransactionValidator {
                 analyzedHashes.forEach(hash -> {
                     log.info(hash + " solidified by checking solidity of " + transaction);
                     zmqMessageProvider.publish("cs %s %s %s", hash, solid, transaction);
+                    addSolidTransaction(hash);
                 });
             } catch(Exception e) {
                 log.info("Error logging solidity of analyzed hashes ", e);
