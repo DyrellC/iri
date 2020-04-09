@@ -96,6 +96,7 @@ public class WalkerAlpha implements Walker {
 
     private Optional<Hash> selectApprover(Hash tailHash, Map<Hash, Integer> ratings, WalkValidator walkValidator) throws Exception {
         Set<Hash> approvers = getApprovers(tailHash);
+        log.info("Approvers size: " + tailHash);
         return findNextValidTail(ratings, approvers, walkValidator);
     }
 
