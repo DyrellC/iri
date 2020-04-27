@@ -64,6 +64,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private Thread milestoneSolidifier = new Thread(this::milestoneSolidificationThread, "Milestone Solidifier");
 
     /**
+<<<<<<< HEAD
      * Constructor for the {@link MilestoneSolidifierImpl}. This class holds milestone objects to be processed for
      * solidification. It also tracks the latest solid milestone object.
      *
@@ -140,6 +141,9 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
      *
      * If upon scanning the {@link #unsolidMilestones} queue is empty and {@link #initialized} is false, set
      * {@link #initialized} to true.
+=======
+     * Logger for this class allowing us to dump debug and status messages.
+>>>>>>> dev
      */
     private void scanMilestonesInQueue() {
         // refill the solidification queue with solidification candidates sorted by index
@@ -573,7 +577,6 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             } else {
                 return -1;
             }
-
             return (int) ((avgMilestoneApplyMillisec / 1000) * (latestMilestoneIndex - latestSolidMilestoneIndex));
         }
     }
