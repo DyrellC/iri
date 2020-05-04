@@ -274,11 +274,12 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         Set<Hash> milestoneTransactions = AddressViewModel.load(tangle, config.getCoordinator()).getHashes();
         int processed = 0;
         int index;
+        int snapshotIndex = snapshotProvider.getLatestSnapshot().getIndex();
         for (Hash hash: milestoneTransactions) {
             try {
                 processed += 1;
                 if ((index = milestoneService.getMilestoneIndex(TransactionViewModel.fromHash(tangle, hash))) >
-                        getLatestSolidMilestoneIndex()) {
+                        snapshotIndex) {
                     addMilestoneCandidate(hash, index);
                 }
 
