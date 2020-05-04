@@ -196,14 +196,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             MilestoneValidity validity = milestoneService.validateMilestone(milestoneCandidate, milestoneIndex);
             switch(validity) {
                 case VALID:
-                    milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
-                    registerNewMilestone(getLatestMilestoneIndex(), milestoneIndex, milestoneHash);
-                    if (milestoneCandidate.isSolid()) {
-                        removeFromQueues(milestoneHash);
-                        addSeenMilestone(milestoneHash, milestoneIndex);
-                    } else {
-                        transactionSolidifier.addToSolidificationQueue(milestoneHash);
-                    }
+                    updateValidMilestone(milestoneCandidate, milestoneIndex);
                     break;
                 case INCOMPLETE:
                     transactionSolidifier.addToSolidificationQueue(milestoneHash);
@@ -214,6 +207,18 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         }
 
         scanMilestonesInQueue();
+    }
+
+
+    private void updateValidMilestone(TransactionViewModel milestoneCandidate, int milestoneIndex) throws Exception {
+        milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
+        registerNewMilestone(getLatestMilestoneIndex(), milestoneIndex, milestoneCandidate.getHash());
+        if (milestoneCandidate.isSolid()) {
+            removeFromQueues(milestoneCandidate.getHash());
+            addSeenMilestone(milestoneCandidate.getHash(), milestoneIndex);
+        } else {
+            transactionSolidifier.addToSolidificationQueue(milestoneCandidate.getHash());
+        }
     }
 
     /**
@@ -259,17 +264,6 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
      * @throws Exception
      */
     private void bootStrapSolidMilestones() throws Exception {
-        boolean solid = true;
-        int milestoneIndex = snapshotProvider.getInitialSnapshot().getIndex();
-
-        while (solid) {
-            milestoneIndex += 1;
-            if (MilestoneViewModel.get(tangle, milestoneIndex) == null) {
-                solid = false;
-                milestoneIndex -= 1;
-            }
-        }
-
         setLatestSolidMilestone(snapshotProvider.getLatestSnapshot().getIndex());
         Set<Hash> milestoneTransactions = AddressViewModel.load(tangle, config.getCoordinator()).getHashes();
         int processed = 0;
@@ -277,9 +271,13 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         for (Hash hash: milestoneTransactions) {
             try {
                 processed += 1;
-                if ((index = milestoneService.getMilestoneIndex(TransactionViewModel.fromHash(tangle, hash))) >
-                        getLatestSolidMilestoneIndex()) {
-                    addMilestoneCandidate(hash, index);
+                TransactionViewModel milestoneCandidate = TransactionViewModel.fromHash(tangle, hash);
+                if ((index = milestoneService.getMilestoneIndex(milestoneCandidate)) > getLatestSolidMilestoneIndex()) {
+                    if (milestoneService.validateMilestone(milestoneCandidate, index) == MilestoneValidity.VALID) {
+                        updateValidMilestone(milestoneCandidate, index);
+                    } else {
+                        addMilestoneCandidate(hash, index);
+                    }
                 }
 
                 if (processed % 1000 == 0 || processed % milestoneTransactions.size() == 0){
