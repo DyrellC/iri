@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private static final IntervalLogger log = new IntervalLogger(MilestoneSolidifierImpl.class);
     // Max size fo the solidification queue
-    private static final int MAX_SIZE = 10;
+    private static final int MAX_SIZE = 20;
 
     private Map<Hash, Integer> unsolidMilestones = new ConcurrentHashMap<>();
     private Map<Hash, Integer> solidificationQueue = new ConcurrentHashMap<>();
