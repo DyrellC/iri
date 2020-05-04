@@ -271,6 +271,10 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     if (milestoneService.validateMilestone(milestoneCandidate, index) == MilestoneValidity.VALID) {
                         milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
                         registerNewMilestone(getLatestMilestoneIndex(), index, milestoneCandidate.getHash());
+                        if (milestoneCandidate.isSolid()) {
+                            removeFromQueues(milestoneCandidate.getHash());
+                            addSeenMilestone(milestoneCandidate.getHash(), index);
+                        }
                     }
                     addMilestoneCandidate(hash, index);
                 }
