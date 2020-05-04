@@ -259,23 +259,35 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
      * @throws Exception
      */
     private void bootStrapSolidMilestones() throws Exception {
+
+        int index = snapshotProvider.getInitialSnapshot().getIndex();
+        boolean solid = true;
+        while(solid){
+            index++;
+            MilestoneViewModel milestone = MilestoneViewModel.get(tangle, index);
+            if(milestone != null){
+                TransactionViewModel milestoneCandidate = TransactionViewModel.fromHash(tangle, milestone.getHash());
+                if (milestoneService.validateMilestone(milestoneCandidate, index) == MilestoneValidity.VALID) {
+                    milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
+                    registerNewMilestone(getLatestMilestoneIndex(), index, milestoneCandidate.getHash());
+                    if (milestoneCandidate.isSolid()) {
+                        removeFromQueues(milestoneCandidate.getHash());
+                        addSeenMilestone(milestoneCandidate.getHash(), index);
+                    }
+                }
+            } else {
+                solid = false;
+            }
+        }
+
         setLatestSolidMilestone(snapshotProvider.getLatestSnapshot().getIndex());
         Set<Hash> milestoneTransactions = AddressViewModel.load(tangle, config.getCoordinator()).getHashes();
         int processed = 0;
-        int index;
         for (Hash hash: milestoneTransactions) {
             try {
                 processed += 1;
                 TransactionViewModel milestoneCandidate = TransactionViewModel.fromHash(tangle, hash);
                 if ((index = milestoneService.getMilestoneIndex(milestoneCandidate)) > getLatestSolidMilestoneIndex()) {
-                    if (milestoneService.validateMilestone(milestoneCandidate, index) == MilestoneValidity.VALID) {
-                        milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
-                        registerNewMilestone(getLatestMilestoneIndex(), index, milestoneCandidate.getHash());
-                        if (milestoneCandidate.isSolid()) {
-                            removeFromQueues(milestoneCandidate.getHash());
-                            addSeenMilestone(milestoneCandidate.getHash(), index);
-                        }
-                    }
                     addMilestoneCandidate(hash, index);
                 }
 
