@@ -270,16 +270,15 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             }
         }
 
-        setLatestSolidMilestone(milestoneIndex);
+        setLatestSolidMilestone(snapshotProvider.getLatestSnapshot().getIndex());
         Set<Hash> milestoneTransactions = AddressViewModel.load(tangle, config.getCoordinator()).getHashes();
         int processed = 0;
         int index;
-        int snapshotIndex = snapshotProvider.getLatestSnapshot().getIndex();
         for (Hash hash: milestoneTransactions) {
             try {
                 processed += 1;
                 if ((index = milestoneService.getMilestoneIndex(TransactionViewModel.fromHash(tangle, hash))) >
-                        snapshotIndex) {
+                        getLatestSolidMilestoneIndex()) {
                     addMilestoneCandidate(hash, index);
                 }
 
