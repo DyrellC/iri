@@ -196,7 +196,14 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             MilestoneValidity validity = milestoneService.validateMilestone(milestoneCandidate, milestoneIndex);
             switch(validity) {
                 case VALID:
-                    updateValidMilestone(milestoneCandidate, milestoneIndex);
+                    milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
+                    registerNewMilestone(getLatestMilestoneIndex(), milestoneIndex, milestoneCandidate.getHash());
+                    if (milestoneCandidate.isSolid()) {
+                        removeFromQueues(milestoneCandidate.getHash());
+                        addSeenMilestone(milestoneCandidate.getHash(), milestoneIndex);
+                    } else {
+                        transactionSolidifier.addToSolidificationQueue(milestoneCandidate.getHash());
+                    }
                     break;
                 case INCOMPLETE:
                     transactionSolidifier.addToSolidificationQueue(milestoneHash);
@@ -207,18 +214,6 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         }
 
         scanMilestonesInQueue();
-    }
-
-
-    private void updateValidMilestone(TransactionViewModel milestoneCandidate, int milestoneIndex) throws Exception {
-        milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
-        registerNewMilestone(getLatestMilestoneIndex(), milestoneIndex, milestoneCandidate.getHash());
-        if (milestoneCandidate.isSolid()) {
-            removeFromQueues(milestoneCandidate.getHash());
-            addSeenMilestone(milestoneCandidate.getHash(), milestoneIndex);
-        } else {
-            transactionSolidifier.addToSolidificationQueue(milestoneCandidate.getHash());
-        }
     }
 
     /**
@@ -274,7 +269,8 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                 TransactionViewModel milestoneCandidate = TransactionViewModel.fromHash(tangle, hash);
                 if ((index = milestoneService.getMilestoneIndex(milestoneCandidate)) > getLatestSolidMilestoneIndex()) {
                     if (milestoneService.validateMilestone(milestoneCandidate, index) == MilestoneValidity.VALID) {
-                        updateValidMilestone(milestoneCandidate, index);
+                        milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
+                        registerNewMilestone(getLatestMilestoneIndex(), index, milestoneCandidate.getHash());
                     } else {
                         addMilestoneCandidate(hash, index);
                     }
