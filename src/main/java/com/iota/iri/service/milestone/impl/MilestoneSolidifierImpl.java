@@ -281,26 +281,26 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         }
 
         setLatestSolidMilestone(snapshotProvider.getLatestSnapshot().getIndex());
-        Set<Hash> milestoneTransactions = AddressViewModel.load(tangle, config.getCoordinator()).getHashes();
         Map<Hash, Integer> milestoneCandidates = new LinkedHashMap<>();
-        int processed = 0;
-        for (Hash hash: milestoneTransactions) {
+        for (Hash hash: AddressViewModel.load(tangle, config.getCoordinator()).getHashes()) {
             try {
-                processed += 1;
                 TransactionViewModel milestoneCandidate = TransactionViewModel.fromHash(tangle, hash);
                 if ((index = milestoneService.getMilestoneIndex(milestoneCandidate)) > getLatestSolidMilestoneIndex()) {
                     milestoneCandidates.put(hash, index);
-                }
-
-                if (processed % 1000 == 0 || processed % milestoneTransactions.size() == 0){
-                    log.info("Bootstrapping milestones: [ " + processed  + " / " + milestoneTransactions.size() + " ]");
                 }
             } catch(Exception e) {
                 log.error("Error processing existing milestone index", e);
             }
         }
 
-        milestoneCandidates.forEach(this::addMilestoneCandidate);
+        int processed = 0;
+        for (Map.Entry<Hash, Integer> milestone : milestoneCandidates.entrySet()){
+            processed += 1;
+            addMilestoneCandidate(milestone.getKey(), milestone.getValue());
+            if (processed % 1000 == 0 || processed % milestoneCandidates.size() == 0){
+                log.info("Bootstrapping milestones: [ " + processed  + " / " + milestoneCandidates.size() + " ]");
+            }
+        }
     }
 
 
