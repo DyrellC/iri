@@ -30,6 +30,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private static final IntervalLogger log = new IntervalLogger(MilestoneSolidifierImpl.class);
     // Max size fo the solidification queue
     private static final int MAX_SIZE = 10;
+    private static final int INITIALIZED_THRESHOLD = 1000;
 
     private Map<Hash, Integer> unsolidMilestones = new ConcurrentHashMap<>();
     private Map<Hash, Integer> solidificationQueue = new ConcurrentHashMap<>();
@@ -168,7 +169,9 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         }
 
 
-        if (!initialized.get() && unsolidMilestones.size() == 0) {
+        if (!initialized.get() && (unsolidMilestones.size() == 0 ||
+                (getLatestSolidMilestoneIndex() - snapshotProvider.getInitialSnapshot().getInitialIndex())
+                        > INITIALIZED_THRESHOLD)) {
             initialized.set(true);
         }
     }
