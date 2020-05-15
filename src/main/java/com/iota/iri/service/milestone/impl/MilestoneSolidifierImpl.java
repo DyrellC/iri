@@ -45,6 +45,9 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     // Max size fo the solidification queue
     private static final int MAX_SIZE = 10;
 
+    // Max size for the processing of the coo address transactions
+    private static final int MAX_PROCESS = 1000;
+
     private Map<Hash, Integer> unsolidMilestones = new ConcurrentHashMap<>();
     private Map<Hash, Integer> solidificationQueue = new ConcurrentHashMap<>();
     private Map<Integer, Hash> seenMilestones = new ConcurrentHashMap<>();
@@ -124,6 +127,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private void milestoneSolidificationThread() {
         while(!Thread.currentThread().isInterrupted()) {
             try {
+                checkForMissingMilestones();
                 processSolidifyQueue();
                 checkLatestSolidMilestone();
 
@@ -220,6 +224,25 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         }
 
         scanMilestonesInQueue();
+    }
+
+    private void checkForMissingMilestones() throws Exception {
+        if (unsolidMilestones.size() == 0 && seenMilestones.size() > 1) {
+            int index;
+            int processed = 0;
+            TransactionViewModel milestone;
+            for (Hash hash: AddressViewModel.load(tangle, config.getCoordinator()).getHashes()) {
+                if (processed < MAX_PROCESS) {
+                    milestone = TransactionViewModel.fromHash(tangle, hash);
+                    if (milestone.getCurrentIndex() == 0 &&
+                        milestoneService.validateMilestone(milestone,
+                                (index = milestoneService.getMilestoneIndex(milestone))) == MilestoneValidity.VALID) {
+                        addSeenMilestone(milestone.getHash(), index);
+                    }
+                    processed++;
+                }
+            }
+        }
     }
 
     /**
