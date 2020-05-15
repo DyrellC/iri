@@ -7,8 +7,6 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import com.iota.iri.model.Hash;
-import com.iota.iri.service.snapshot.SnapshotProvider;
-import com.iota.iri.storage.Tangle;
 
 /**
  * Acts as a controller interface for a <tt>Tips</tt> set. A tips set is a a First In First Out cache for
@@ -26,9 +24,6 @@ public class TipsViewModel {
     private final SecureRandom seed = new SecureRandom();
     private final Object sync = new Object();
 
-    private SnapshotProvider snapshotProvider;
-    private Tangle tangle;
-
     /**
      * Adds a {@link Hash} object to the tip cache in a synchronous fashion.
      *
@@ -38,11 +33,6 @@ public class TipsViewModel {
         synchronized (sync) {
             tips.add(hash);
         }
-    }
-
-    public void injectSnapshotProvider(SnapshotProvider snapshotProvider, Tangle tangle){
-        this.snapshotProvider = snapshotProvider;
-        this.tangle = tangle;
     }
 
     /**
@@ -84,45 +74,18 @@ public class TipsViewModel {
      */
     public Set<Hash> getTips() {
         Set<Hash> hashes = new HashSet<>();
-        Set<Hash> hashesToRemove = new HashSet<>();
         synchronized (sync) {
-            try {
-                MilestoneViewModel maxDepthMilestone = MilestoneViewModel
-                        .get(tangle, snapshotProvider.getLatestSnapshot().getIndex() - 15);
-                Iterator<Hash> hashIterator;
-                hashIterator = tips.iterator();
-                Hash hash;
-                while (hashIterator.hasNext()) {
-                    hash = hashIterator.next();
-                    if (TransactionViewModel.fromHash(tangle, hash).getAttachmentTimestamp() >
-                    TransactionViewModel.fromHash(tangle, maxDepthMilestone.getHash()).getAttachmentTimestamp()) {
-                        hashes.add(hash);
-                    } else {
-                        hashesToRemove.add(hash);
-                    }
-                }
+            Iterator<Hash> hashIterator;
+            hashIterator = tips.iterator();
+            while (hashIterator.hasNext()) {
+                hashes.add(hashIterator.next());
+            }
 
-                hashIterator = solidTips.iterator();
-                while (hashIterator.hasNext()) {
-                    hash = hashIterator.next();
-                    if (TransactionViewModel.fromHash(tangle, hash).getAttachmentTimestamp() >
-                            TransactionViewModel.fromHash(tangle, maxDepthMilestone.getHash()).getAttachmentTimestamp()) {
-                        hashes.add(hash);
-                    } else {
-                        hashesToRemove.add(hash);
-                    }
-                }
-
-                hashIterator = hashesToRemove.iterator();
-                while (hashIterator.hasNext()){
-                    hash = hashIterator.next();
-                    tips.remove(hash);
-                    solidTips.remove(hash);
-                }
-            } catch (Exception e) {
+            hashIterator = solidTips.iterator();
+            while (hashIterator.hasNext()) {
+                hashes.add(hashIterator.next());
             }
         }
-
         return hashes;
     }
 
