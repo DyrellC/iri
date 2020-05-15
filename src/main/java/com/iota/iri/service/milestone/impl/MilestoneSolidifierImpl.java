@@ -273,10 +273,11 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         MilestoneViewModel nextMilestone;
 
         log.info("Starting milestone bootstrapping...");
-        while (index < latestAvailableMilestoneIndex &&
-                (nextMilestone = MilestoneViewModel.get(tangle, ++index)) != null) {
+        while (index < latestAvailableMilestoneIndex) {
+            if ((nextMilestone = MilestoneViewModel.get(tangle, ++index)) != null) {
                 registerNewMilestone(getLatestMilestoneIndex(), index, nextMilestone.getHash());
                 addMilestoneCandidate(nextMilestone.getHash(), nextMilestone.index());
+            }
         }
 
         log.info("Done bootstrapping milestones.");
