@@ -210,6 +210,7 @@ public class Iota {
         if (transactionPruner != null) {
             transactionPruner.start();
         }
+        tipsViewModel.injectSnapshotProvider(snapshotProvider, tangle);
     }
 
     private void rescanDb() throws Exception {

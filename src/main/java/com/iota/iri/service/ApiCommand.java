@@ -90,8 +90,14 @@ public enum ApiCommand {
     /**
      * Check if an address has been spent from
      */
-    WERE_ADDRESSES_SPENT_FROM("wereAddressesSpentFrom");
-    
+    WERE_ADDRESSES_SPENT_FROM("wereAddressesSpentFrom"),
+
+    /**
+     * Get all tips currently on this node
+     */
+    GET_TIPS("getTips");
+
+
     private String name;
 
     private ApiCommand(String name) {
