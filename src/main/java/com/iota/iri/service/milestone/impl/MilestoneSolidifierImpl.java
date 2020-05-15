@@ -236,7 +236,8 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     milestone = TransactionViewModel.fromHash(tangle, hash);
                     index = milestoneService.getMilestoneIndex(milestone);
                     if (milestone.getCurrentIndex() == 0 &&
-                        milestoneService.validateMilestone(milestone, index) == MilestoneValidity.VALID) {
+                            index > getLatestSolidMilestoneIndex() &&
+                            milestoneService.validateMilestone(milestone, index) == MilestoneValidity.VALID) {
                         addSeenMilestone(milestone.getHash(), index);
                     }
                     processed++;
