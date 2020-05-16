@@ -295,12 +295,14 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private void bootStrapSolidMilestones() throws Exception {
         setLatestSolidMilestone(snapshotProvider.getLatestSnapshot().getIndex());
         int index = getLatestSolidMilestoneIndex();
-        try {
-            int latestAvailableMilestoneIndex = MilestoneViewModel.latest(tangle).index();
-        } catch(NullPointerException e) {
-            int latestAvailableMilestoneIndex = 0;
-        }
+        int latestAvailableMilestoneIndex = 0;
         MilestoneViewModel nextMilestone;
+
+        try {
+            latestAvailableMilestoneIndex = MilestoneViewModel.latest(tangle).index();
+        } catch(NullPointerException e) {
+            log.warn("No milestones found in db.");
+        }
 
         log.info("Starting milestone bootstrapping...");
         while (index < latestAvailableMilestoneIndex) {
