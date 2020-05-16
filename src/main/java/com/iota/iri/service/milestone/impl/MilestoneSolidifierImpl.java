@@ -295,7 +295,11 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private void bootStrapSolidMilestones() throws Exception {
         setLatestSolidMilestone(snapshotProvider.getLatestSnapshot().getIndex());
         int index = getLatestSolidMilestoneIndex();
-        int latestAvailableMilestoneIndex = MilestoneViewModel.latest(tangle).index();
+        try {
+            int latestAvailableMilestoneIndex = MilestoneViewModel.latest(tangle).index();
+        } catch(NullPointerException e) {
+            int latestAvailableMilestoneIndex = 0;
+        }
         MilestoneViewModel nextMilestone;
 
         log.info("Starting milestone bootstrapping...");
