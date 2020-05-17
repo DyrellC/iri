@@ -334,7 +334,6 @@ public class TransactionSolidifierImpl implements TransactionSolidifier {
                 transactionViewModel.updateSolid(true);
                 transactionViewModel.updateHeights(tangle, snapshotProvider.getInitialSnapshot());
                 transactionPropagator.addToPropagationQueue(transactionViewModel.getHash());
-                addToBroadcastQueue(transactionViewModel);
                 return true;
             }
         }
