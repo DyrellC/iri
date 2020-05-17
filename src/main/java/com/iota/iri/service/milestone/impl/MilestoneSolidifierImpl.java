@@ -228,7 +228,6 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     private void checkForMissingMilestones() throws Exception {
         if (unsolidMilestones.size() == 0 && seenMilestones.size() > 1) {
-            seenMilestones.values().forEach(transactionSolidifier::addToSolidificationQueue);
             int index;
             int processed = 0;
             TransactionViewModel milestone;
@@ -268,10 +267,21 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                         transactionSolidifier.addToSolidificationQueue(milestone.getHash());
                     }
                 }
+                checkOldestSeenMilestoneSolidity();
             }
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
+    }
+
+    private void checkOldestSeenMilestoneSolidity() {
+        Map.Entry<Integer, Hash> lowestMilestone = new AbstractMap.SimpleEntry<>(0, Hash.NULL_HASH);
+        for (Map.Entry<Integer, Hash> milestone: seenMilestones.entrySet()){
+            if (lowestMilestone.getKey() == 0 || milestone.getKey() < lowestMilestone.getKey()) {
+                lowestMilestone = milestone;
+            }
+        }
+        transactionSolidifier.addToSolidificationQueue(lowestMilestone.getValue());
     }
 
     private void solidifyLog() {
