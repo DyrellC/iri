@@ -228,23 +228,27 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     private void checkForMissingMilestones() throws Exception {
         if (unsolidMilestones.size() == 0 && seenMilestones.size() > 1) {
+            log.info("Scanning for missing milestones...");
             int index;
             int processed = 0;
             TransactionViewModel milestone;
             for (Hash hash: AddressViewModel.load(tangle, config.getCoordinator()).getHashes()) {
-                if (processed < MAX_PROCESS) {
-                    milestone = TransactionViewModel.fromHash(tangle, hash);
-                    index = milestoneService.getMilestoneIndex(milestone);
-                    if (milestone.getCurrentIndex() == 0 &&
-                            index > getLatestSolidMilestoneIndex() &&
-                            milestoneService.validateMilestone(milestone, index) == MilestoneValidity.VALID) {
-                        addMilestoneCandidate(milestone.getHash(), index);
-                    }
-                    processed++;
-                } else {
-                    break;
+                milestone = TransactionViewModel.fromHash(tangle, hash);
+                index = milestoneService.getMilestoneIndex(milestone);
+
+                if (milestone.getCurrentIndex() == 0 &&
+                        index > getLatestSolidMilestoneIndex() &&
+                        milestoneService.validateMilestone(milestone, index) == MilestoneValidity.VALID) {
+                    addMilestoneCandidate(milestone.getHash(), index);
                 }
+
+                if (processed % 1000 == 0) {
+                    log.info("Processed " + processed + " milestones...")
+                }
+
+                processed++;
             }
+            log.info("Done scanning for missing milestones.");
         }
     }
 
