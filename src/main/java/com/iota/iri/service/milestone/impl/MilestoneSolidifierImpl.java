@@ -232,25 +232,24 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             log.info("Scanning for missing milestones...");
             checkLowestSeenMilestone();
             int index;
-            int processed = 0;
+            int addedMilestones = 0;
             TransactionViewModel milestone;
             for (Hash hash: AddressViewModel.load(tangle, config.getCoordinator()).getHashes()) {
                 milestone = TransactionViewModel.fromHash(tangle, hash);
                 index = milestoneService.getMilestoneIndex(milestone);
 
-                if (milestone.getCurrentIndex() == 0 &&
+                if (!seenMilestones.containsValue(milestone.getHash()) &&
+                        milestone.getCurrentIndex() == 0 &&
                         index > getLatestSolidMilestoneIndex() &&
                         milestoneService.validateMilestone(milestone, index) == MilestoneValidity.VALID) {
                     addMilestoneCandidate(milestone.getHash(), index);
+                    addedMilestones++;
                 }
-
-                if (processed % 5000 == 0) {
-                    log.info("Processed " + processed + " milestones...");
-                }
-
-                processed++;
             }
-            log.info("Done scanning for missing milestones.");
+            log.info("Done scanning for missing milestones. [ Added: " + addedMilestones + " ]");
+            if (addedMilestones > 0) {
+                isSyncing.set(true);
+            }
         }
     }
 
