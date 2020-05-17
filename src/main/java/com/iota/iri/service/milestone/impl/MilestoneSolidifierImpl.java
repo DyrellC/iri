@@ -279,25 +279,9 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                 } else {
                     isSyncing.set(false);
                 }
-                checkOldestSeenMilestoneSolidity();
             }
         } catch (Exception e) {
             log.error(e.getMessage(), e);
-        }
-    }
-
-    private void checkOldestSeenMilestoneSolidity() {
-        Map.Entry<Integer, Hash> lowestMilestone = new AbstractMap.SimpleEntry<>(0, Hash.NULL_HASH);
-        for (Map.Entry<Integer, Hash> milestone: seenMilestones.entrySet()){
-            if (lowestMilestone.getKey() == 0 || milestone.getKey() < lowestMilestone.getKey()) {
-                lowestMilestone = milestone;
-            }
-        }
-
-        if (lowestMilestone.getKey() > getLatestSolidMilestoneIndex()) {
-            removeCurrentAndLowerSeenMilestone(lowestMilestone.getKey());
-        } else {
-            transactionSolidifier.addToSolidificationQueue(lowestMilestone.getValue());
         }
     }
 
