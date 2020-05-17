@@ -230,6 +230,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private void checkForMissingMilestones() throws Exception {
         if (!isSyncing.get() && unsolidMilestones.size() == 0 && seenMilestones.size() > 1) {
             log.info("Scanning for missing milestones...");
+            checkLowestSeenMilestone();
             int index;
             int processed = 0;
             TransactionViewModel milestone;
@@ -276,7 +277,6 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     isSyncing.set(false);
                 }
             }
-            checkLowestSeenMilestone();
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
