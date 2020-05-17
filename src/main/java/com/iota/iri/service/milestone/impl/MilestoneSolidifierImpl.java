@@ -238,7 +238,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     if (milestone.getCurrentIndex() == 0 &&
                             index > getLatestSolidMilestoneIndex() &&
                             milestoneService.validateMilestone(milestone, index) == MilestoneValidity.VALID) {
-                        addSeenMilestone(milestone.getHash(), index);
+                        addMilestoneCandidate(milestone.getHash(), index);
                     }
                     processed++;
                 } else {
