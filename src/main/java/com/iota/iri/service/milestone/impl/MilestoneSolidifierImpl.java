@@ -76,6 +76,11 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private AtomicBoolean initialized = new AtomicBoolean(false);
 
     /**
+     * An indicater for whether the node is actively syncing
+     */
+    private AtomicBoolean isSyncing = new AtomicBoolean(false);
+
+    /**
      * A thread to run the milestone solidification thread in
      */
     private Thread milestoneSolidifier = new Thread(this::milestoneSolidificationThread, "Milestone Solidifier");
@@ -227,7 +232,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     }
 
     private void checkForMissingMilestones() throws Exception {
-        if (unsolidMilestones.size() == 0 && seenMilestones.size() > 1) {
+        if (!isSyncing.get() && unsolidMilestones.size() == 0 && seenMilestones.size() > 1) {
             log.info("Scanning for missing milestones...");
             int index;
             int processed = 0;
@@ -242,7 +247,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     addMilestoneCandidate(milestone.getHash(), index);
                 }
 
-                if (processed % 1000 == 0) {
+                if (processed % 5000 == 0) {
                     log.info("Processed " + processed + " milestones...");
                 }
 
@@ -262,6 +267,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             if (getLatestMilestoneIndex() > getLatestSolidMilestoneIndex()) {
                 int nextMilestone = getLatestSolidMilestoneIndex() + 1;
                 if (seenMilestones.containsKey(nextMilestone)) {
+                    isSyncing.set(true);
                     TransactionViewModel milestone = TransactionViewModel.fromHash(tangle,
                             seenMilestones.get(nextMilestone));
                     if (milestone.isSolid()) {
@@ -270,6 +276,8 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     } else {
                         transactionSolidifier.addToSolidificationQueue(milestone.getHash());
                     }
+                } else {
+                    isSyncing.set(false);
                 }
                 checkOldestSeenMilestoneSolidity();
             }
