@@ -243,7 +243,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                 }
 
                 if (processed % 1000 == 0) {
-                    log.info("Processed " + processed + " milestones...")
+                    log.info("Processed " + processed + " milestones...");
                 }
 
                 processed++;
