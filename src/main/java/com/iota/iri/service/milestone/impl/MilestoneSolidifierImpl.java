@@ -288,6 +288,11 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                 lowestIndex = index;
             }
         }
+
+        if (lowestIndex <= getLatestSolidMilestoneIndex()) {
+            removeCurrentAndLowerSeenMilestone(lowestIndex);
+        }
+
         transactionSolidifier.addToSolidificationQueue(seenMilestones.get(lowestIndex));
     }
 
