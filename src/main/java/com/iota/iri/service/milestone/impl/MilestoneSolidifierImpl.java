@@ -281,7 +281,12 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                 lowestMilestone = milestone;
             }
         }
-        transactionSolidifier.addToSolidificationQueue(lowestMilestone.getValue());
+
+        if (lowestMilestone.getKey() > getLatestSolidMilestoneIndex()) {
+            removeCurrentAndLowerSeenMilestone(lowestMilestone.getKey());
+        } else {
+            transactionSolidifier.addToSolidificationQueue(lowestMilestone.getValue());
+        }
     }
 
     private void solidifyLog() {
