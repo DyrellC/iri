@@ -284,7 +284,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private void checkLowestSeenMilestone() {
         int lowestIndex = 0;
         for (int index: seenMilestones.keySet()) {
-            if (lowestIndex == 0 || index > lowestIndex) {
+            if (lowestIndex == 0 || index <= lowestIndex) {
                 lowestIndex = index;
             }
         }
