@@ -266,6 +266,8 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     } else {
                         transactionSolidifier.addToSolidificationQueue(milestone.getHash());
                     }
+                } else if (seenMilestones.size() > 0) {
+                    seenMilestones.values().forEach(transactionSolidifier::addToSolidificationQueue);
                 }
             }
         } catch (Exception e) {
