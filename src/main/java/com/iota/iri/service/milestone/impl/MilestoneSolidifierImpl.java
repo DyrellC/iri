@@ -228,6 +228,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     private void checkForMissingMilestones() throws Exception {
         if (unsolidMilestones.size() == 0 && seenMilestones.size() > 1) {
+            seenMilestones.values().forEach(transactionSolidifier::addToSolidificationQueue);
             int index;
             int processed = 0;
             TransactionViewModel milestone;
@@ -266,8 +267,6 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     } else {
                         transactionSolidifier.addToSolidificationQueue(milestone.getHash());
                     }
-                } else if (seenMilestones.size() > 0) {
-                    seenMilestones.values().forEach(transactionSolidifier::addToSolidificationQueue);
                 }
             }
         } catch (Exception e) {
