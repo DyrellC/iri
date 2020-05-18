@@ -233,7 +233,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     private void checkForMissingMilestones() {
         checkLowestSeenMilestone();
-        if (unsolidMilestones.size() == 0 && seenMilestones.size() > 1 && !isSyncing.get()) {
+        if ((unsolidMilestones.size() == 0 || !isSyncing.get()) && seenMilestones.size() > 1) {
             scanMilestoneAddress();
         }
     }
