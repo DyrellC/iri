@@ -27,6 +27,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class MilestoneSolidifierImpl implements MilestoneSolidifier {
@@ -57,6 +58,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private AtomicInteger latestMilestoneIndex = new AtomicInteger(0);
     private AtomicReference<Hash> latestMilestoneHash = new AtomicReference<>(Hash.NULL_HASH);
     private AtomicInteger latestSolidMilestone = new AtomicInteger(0);
+    private AtomicLong latestProcessedMilestoneTime = new AtomicLong(0);
 
     private TransactionSolidifier transactionSolidifier;
     private LedgerService ledgerService;
@@ -122,6 +124,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             logChange(snapshotProvider.getInitialSnapshot().getIndex());
 
             syncProgressInfo.setSyncMilestoneStartIndex(snapshotProvider.getInitialSnapshot().getIndex());
+            latestProcessedMilestoneTime.set(System.currentTimeMillis());
             milestoneSolidifier.start();
 
         } catch (Exception e) {
@@ -191,6 +194,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     private void updateOldestMilestone(Hash milestoneHash, int milestoneIndex) {
         if (oldestMilestoneInQueue == null || oldestMilestoneInQueue.getValue() > milestoneIndex) {
             oldestMilestoneInQueue = new AbstractMap.SimpleEntry<>(milestoneHash, milestoneIndex);
+            latestProcessedMilestoneTime.set(System.currentTimeMillis());
         }
     }
 
@@ -233,7 +237,8 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     private void checkForMissingMilestones() {
         checkLowestSeenMilestone();
-        if ((unsolidMilestones.size() == 0 || !isSyncing.get()) && seenMilestones.size() > 1) {
+        if ((unsolidMilestones.size() == 0 && !isSyncing.get() && seenMilestones.size() > 1) ||
+                System.currentTimeMillis() - latestProcessedMilestoneTime.get() > 60_000) {
             scanMilestoneAddress();
         }
     }
