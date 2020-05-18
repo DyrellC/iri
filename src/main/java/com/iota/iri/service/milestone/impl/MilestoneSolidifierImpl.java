@@ -183,19 +183,25 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         }
 
         // update the oldest milestone in queue. First reset oldestMilestoneInQueue before scanning queue.
-        oldestMilestoneInQueue = null;
+        Map.Entry<Hash, Integer> newOldestMilestone = null;
         for (Map.Entry<Hash, Integer> currentEntry : solidificationQueue.entrySet()) {
-            if (!seenMilestones.containsKey(currentEntry.getValue())) {
-                updateOldestMilestone(currentEntry.getKey(), currentEntry.getValue());
-            }
+            if (!seenMilestones.containsKey(currentEntry.getValue()))
+                newOldestMilestone = updateOldestMilestone(currentEntry.getKey(),
+                        currentEntry.getValue(), newOldestMilestone);
         }
-    }
-
-    private void updateOldestMilestone(Hash milestoneHash, int milestoneIndex) {
-        if (oldestMilestoneInQueue == null || oldestMilestoneInQueue.getValue() > milestoneIndex) {
-            oldestMilestoneInQueue = new AbstractMap.SimpleEntry<>(milestoneHash, milestoneIndex);
+        if (newOldestMilestone.getValue() < oldestMilestoneInQueue.getValue()) {
+            oldestMilestoneInQueue = newOldestMilestone;
             latestProcessedMilestoneTime.set(System.currentTimeMillis());
         }
+
+    }
+
+    private Map.Entry<Hash, Integer> updateOldestMilestone(Hash milestoneHash, int milestoneIndex,
+                                                           Map.Entry<Hash, Integer> newOldestMilestoneInQueue) {
+        if (newOldestMilestoneInQueue == null || newOldestMilestoneInQueue.getValue() > milestoneIndex) {
+            newOldestMilestoneInQueue = new AbstractMap.SimpleEntry<>(milestoneHash, milestoneIndex);
+        }
+        return newOldestMilestoneInQueue;
     }
 
     /**
