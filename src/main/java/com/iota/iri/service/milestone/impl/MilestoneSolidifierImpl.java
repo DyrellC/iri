@@ -213,8 +213,12 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                 case VALID:
                     milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
                     registerNewMilestone(getLatestMilestoneIndex(), milestoneIndex, milestoneHash);
-                    removeFromQueues(milestoneHash);
-                    addSeenMilestone(milestoneHash, milestoneIndex);
+                    if (milestoneCandidate.isSolid()) {
+                        removeFromQueues(milestoneHash);
+                        addSeenMilestone(milestoneHash, milestoneIndex);
+                    } else {
+                        transactionSolidifier.addMilestoneToSolidificationQueue(milestoneHash);
+                    }
                     break;
                 case INCOMPLETE:
                     transactionSolidifier.addToSolidificationQueue(milestoneHash);
