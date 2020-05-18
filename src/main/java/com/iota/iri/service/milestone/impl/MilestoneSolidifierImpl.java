@@ -262,20 +262,21 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     }
 
     private void checkLowestSeenMilestone() {
-        if (seenMilestones.size() > 0) {
-            int lowestIndex = 0;
-            for (int index : seenMilestones.keySet()) {
-                if (lowestIndex == 0 || index <= lowestIndex) {
-                    lowestIndex = index;
-                }
+        int lowestIndex = 0;
+        for (int index : seenMilestones.keySet()) {
+            if (lowestIndex == 0 || index <= lowestIndex) {
+                lowestIndex = index;
             }
+        }
 
-            if (lowestIndex <= getLatestSolidMilestoneIndex()) {
-                removeCurrentAndLowerSeenMilestone(lowestIndex);
-            }
+        if (lowestIndex <= getLatestSolidMilestoneIndex()) {
+            removeCurrentAndLowerSeenMilestone(lowestIndex);
+        }
 
+        if (seenMilestones.get(lowestIndex) != null) {
             transactionSolidifier.addToSolidificationQueue(seenMilestones.get(lowestIndex));
         }
+
     }
 
     private void solidifyLog() {
