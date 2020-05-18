@@ -250,9 +250,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     private void checkForMissingMilestones() {
         checkLowestSeenMilestone();
-        log.info("#### " + (System.currentTimeMillis() - latestProcessedMilestoneTime.get()) + " ####");
-        if ((unsolidMilestones.size() == 0 && !isSyncing.get() && seenMilestones.size() > 1) ||
-                System.currentTimeMillis() - latestProcessedMilestoneTime.get() > 60_000) {
+        if (shouldScan()) {
             scanMilestoneAddress();
         }
     }
@@ -327,6 +325,16 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             transactionSolidifier.addToSolidificationQueue(seenMilestones.get(lowestIndex));
         }
 
+    }
+
+    private boolean isSynced() {
+        return snapshotProvider.getLatestSnapshot().getIndex() == getLatestSolidMilestoneIndex();
+    }
+
+    private boolean shouldScan() {
+        boolean missingMilestones = (unsolidMilestones.size() == 0 && !isSyncing.get() && seenMilestones.size() > 1);
+        return (!isSynced() &&
+                (missingMilestones || System.currentTimeMillis() - latestProcessedMilestoneTime.get() > 60_000));
     }
 
     private void solidifyLog() {
