@@ -249,6 +249,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     private void checkForMissingMilestones() {
         checkLowestSeenMilestone();
+        log.info("#### " + (System.currentTimeMillis() - latestProcessedMilestoneTime.get()) + " ####");
         if ((unsolidMilestones.size() == 0 && !isSyncing.get() && seenMilestones.size() > 1) ||
                 System.currentTimeMillis() - latestProcessedMilestoneTime.get() > 60_000) {
             scanMilestoneAddress();
