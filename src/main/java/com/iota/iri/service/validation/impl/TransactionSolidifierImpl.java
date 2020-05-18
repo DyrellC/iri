@@ -225,11 +225,12 @@ public class TransactionSolidifierImpl implements TransactionSolidifier {
                 if (transaction.getType() == PREFILLED_SLOT) {
                     solid = false;
                     checkRequester(hashPointer);
-                } else if(transaction.getAddressHash().equals(cooAddress)) {
-                    checkRequester(hashPointer);
                 } else {
                     nonAnalyzedTransactions.offer(transaction.getTrunkTransactionHash());
                     nonAnalyzedTransactions.offer(transaction.getBranchTransactionHash());
+                    if (transaction.getAddressHash().equals(cooAddress)) {
+                        checkRequester(hashPointer);
+                    }
                 }
             }
         }
