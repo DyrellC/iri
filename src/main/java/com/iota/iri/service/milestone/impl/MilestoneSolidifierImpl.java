@@ -297,6 +297,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     if (milestone.isSolid()) {
                         updateSolidMilestone(getLatestSolidMilestoneIndex());
                         transactionSolidifier.addToPropagationQueue(milestone.getHash());
+                        oldestMilestoneInQueue = null;
                     } else {
                         transactionSolidifier.addToSolidificationQueue(milestone.getHash());
                     }
@@ -328,7 +329,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     }
 
     private boolean isSynced() {
-        return snapshotProvider.getLatestSnapshot().getIndex() == getLatestSolidMilestoneIndex();
+        return snapshotProvider.getLatestSnapshot().getIndex() == getLatestMilestoneIndex();
     }
 
     private boolean shouldScan() {
