@@ -72,6 +72,8 @@ public class TransactionSolidifierImpl implements TransactionSolidifier {
 
     private TransactionPropagator transactionPropagator;
 
+    private Hash cooAddress;
+
     /**
      * Constructor for the solidifier.
      * @param tangle                    The DB reference
@@ -79,12 +81,13 @@ public class TransactionSolidifierImpl implements TransactionSolidifier {
      * @param transactionRequester      A requester for missing transactions
      */
     public TransactionSolidifierImpl(Tangle tangle, SnapshotProvider snapshotProvider, TransactionRequester transactionRequester,
-                                     TipsViewModel tipsViewModel){
+                                     TipsViewModel tipsViewModel, Hash cooAddress){
         this.tangle = tangle;
         this.snapshotProvider = snapshotProvider;
         this.transactionRequester = transactionRequester;
         this.tipsViewModel = tipsViewModel;
         this.transactionPropagator = new TransactionPropagator();
+        this.cooAddress = cooAddress;
     }
 
     /**
@@ -221,6 +224,8 @@ public class TransactionSolidifierImpl implements TransactionSolidifier {
             if (isUnsolidWithoutEntryPoint(transaction, hashPointer)) {
                 if (transaction.getType() == PREFILLED_SLOT) {
                     solid = false;
+                    checkRequester(hashPointer);
+                } else if(transaction.getAddressHash() == cooAddress) {
                     checkRequester(hashPointer);
                 } else {
                     nonAnalyzedTransactions.offer(transaction.getTrunkTransactionHash());
