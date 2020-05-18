@@ -185,9 +185,10 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         // update the oldest milestone in queue. First reset oldestMilestoneInQueue before scanning queue.
         Map.Entry<Hash, Integer> newOldestMilestone = null;
         for (Map.Entry<Hash, Integer> currentEntry : solidificationQueue.entrySet()) {
-            if (!seenMilestones.containsKey(currentEntry.getValue()))
+            if (!seenMilestones.containsKey(currentEntry.getValue())) {
                 newOldestMilestone = updateOldestMilestone(currentEntry.getKey(),
                         currentEntry.getValue(), newOldestMilestone);
+            }
         }
         if (newOldestMilestone.getValue() < oldestMilestoneInQueue.getValue()) {
             oldestMilestoneInQueue = newOldestMilestone;
