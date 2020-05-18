@@ -142,6 +142,14 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     @Override
     public void shutdown(){
+        try {
+            Iterator<Map.Entry<Hash, Integer>> milestoneIterator = unsolidMilestones.entrySet().iterator();
+            while (milestoneIterator.hasNext()) {
+                checkMilestoneValidity(milestoneIterator.next());
+            }
+        } catch (Exception e) {
+            log.warn("Error checking milestone validity.", e);
+        }
         milestoneSolidifier.interrupt();
     }
 
@@ -195,31 +203,36 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
         Map.Entry<Hash, Integer> milestone;
         while(!Thread.currentThread().isInterrupted() && iterator.hasNext()) {
             milestone = iterator.next();
-            Hash milestoneHash = milestone.getKey();
-            int milestoneIndex = milestone.getValue();
-            TransactionViewModel milestoneCandidate = TransactionViewModel.fromHash(tangle, milestoneHash);
-
-            MilestoneValidity validity = milestoneService.validateMilestone(milestoneCandidate, milestoneIndex);
-            switch(validity) {
-                case VALID:
-                    milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
-                    registerNewMilestone(getLatestMilestoneIndex(), milestoneIndex, milestoneHash);
-                    if (milestoneCandidate.isSolid()) {
-                        removeFromQueues(milestoneHash);
-                        addSeenMilestone(milestoneHash, milestoneIndex);
-                    } else {
-                        transactionSolidifier.addToSolidificationQueue(milestoneHash);
-                    }
-                    break;
-                case INCOMPLETE:
-                    transactionSolidifier.addToSolidificationQueue(milestoneHash);
-                    break;
-                case INVALID:
-                    removeFromQueues(milestone.getKey());
-            }
+            checkMilestoneValidity(milestone);
         }
 
         scanMilestonesInQueue();
+    }
+
+
+    private void checkMilestoneValidity(Map.Entry<Hash, Integer> milestone) throws Exception {
+        Hash milestoneHash = milestone.getKey();
+        int milestoneIndex = milestone.getValue();
+        TransactionViewModel milestoneCandidate = TransactionViewModel.fromHash(tangle, milestoneHash);
+
+        MilestoneValidity validity = milestoneService.validateMilestone(milestoneCandidate, milestoneIndex);
+        switch(validity) {
+            case VALID:
+                milestoneCandidate.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
+                registerNewMilestone(getLatestMilestoneIndex(), milestoneIndex, milestoneHash);
+                if (milestoneCandidate.isSolid()) {
+                    removeFromQueues(milestoneHash);
+                    addSeenMilestone(milestoneHash, milestoneIndex);
+                } else {
+                    transactionSolidifier.addToSolidificationQueue(milestoneHash);
+                }
+                break;
+            case INCOMPLETE:
+                transactionSolidifier.addToSolidificationQueue(milestoneHash);
+                break;
+            case INVALID:
+                removeFromQueues(milestone.getKey());
+        }
     }
 
     /**
