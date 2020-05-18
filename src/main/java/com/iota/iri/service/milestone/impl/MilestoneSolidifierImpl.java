@@ -190,6 +190,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                         currentEntry.getValue(), newOldestMilestone);
             }
         }
+        log.info("newOldestMilestone: " + newOldestMilestone );
         if (newOldestMilestone != null && newOldestMilestone.getValue() < oldestMilestoneInQueue.getValue()) {
             oldestMilestoneInQueue = newOldestMilestone;
             latestProcessedMilestoneTime.set(System.currentTimeMillis());
