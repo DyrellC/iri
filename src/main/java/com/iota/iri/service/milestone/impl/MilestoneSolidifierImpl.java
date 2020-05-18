@@ -232,6 +232,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     if (milestoneCandidate.isSolid()) {
                         removeFromQueues(milestoneHash);
                         addSeenMilestone(milestoneHash, milestoneIndex);
+                        oldestMilestoneInQueue = null;
                     } else {
                         transactionSolidifier.addMilestoneToSolidificationQueue(milestoneHash);
                     }
