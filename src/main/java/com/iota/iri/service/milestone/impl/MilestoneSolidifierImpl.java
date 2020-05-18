@@ -263,6 +263,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             for (Hash hash : AddressViewModel.load(tangle, config.getCoordinator()).getHashes()) {
                 TransactionViewModel tvm = TransactionViewModel.fromHash(tangle, hash);
                 if (!seenMilestones.containsValue(hash) &&
+                        !unsolidMilestones.containsKey(hash) &&
                         (index = milestoneService.getMilestoneIndex(tvm)) > getLatestSolidMilestoneIndex() &&
                         tvm.getCurrentIndex() == 0 &&
                         milestoneService.validateMilestone(tvm, index) == MilestoneValidity.VALID) {
