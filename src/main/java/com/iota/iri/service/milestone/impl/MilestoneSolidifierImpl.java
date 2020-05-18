@@ -172,7 +172,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     .sorted(Map.Entry.comparingByValue())
                     .forEach(milestone -> {
                         //If milestone candidate has a lower index than the latest solid milestone remove it from the queues.
-                        if (milestone.getValue() < getLatestSolidMilestoneIndex()){
+                        if (milestone.getValue() < getLatestSolidMilestoneIndex()) {
                             removeFromQueues(milestone.getKey());
                         } else {
                             if (solidificationQueue.size() < MAX_SIZE) {
@@ -190,7 +190,11 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                         currentEntry.getValue(), newOldestMilestone);
             }
         }
-        log.info("newOldestMilestone: " + newOldestMilestone );
+
+        if (oldestMilestoneInQueue == null) {
+            oldestMilestoneInQueue = newOldestMilestone;
+        }
+
         if (newOldestMilestone != null && newOldestMilestone.getValue() < oldestMilestoneInQueue.getValue()) {
             oldestMilestoneInQueue = newOldestMilestone;
             latestProcessedMilestoneTime.set(System.currentTimeMillis());
