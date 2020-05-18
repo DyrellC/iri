@@ -143,9 +143,17 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
     @Override
     public void shutdown(){
         try {
-            Iterator<Map.Entry<Hash, Integer>> milestoneIterator = unsolidMilestones.entrySet().iterator();
-            while (milestoneIterator.hasNext()) {
-                checkMilestoneValidity(milestoneIterator.next());
+            if (unsolidMilestones.size() > 0) {
+                log.info("Scanning remaining unsolid milestones. Remaining: " + unsolidMilestones.size());
+                int processed = 0;
+                for (Map.Entry<Hash, Integer> hashIntegerEntry : unsolidMilestones.entrySet()) {
+                    processed++;
+                    checkMilestoneValidity(hashIntegerEntry);
+                    if (processed % 1000 == 0) {
+                        log.info(processed + " Scanned...");
+                    }
+                }
+                log.info("Done scanning remaining milestones. Proceeding with shut down...");
             }
         } catch (Exception e) {
             log.warn("Error checking milestone validity.", e);
