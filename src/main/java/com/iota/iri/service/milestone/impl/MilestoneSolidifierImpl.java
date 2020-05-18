@@ -248,8 +248,10 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
                     addedMilestones++;
                 }
             }
+
             if (addedMilestones > 0) {
                 isSyncing.set(true);
+                log.info("Scan added " + addedMilestones + "milestones.");
             }
             log.info("Done");
         } catch (Exception e) {
