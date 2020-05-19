@@ -142,7 +142,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
 
     @Override
     public void shutdown(){
-        try {
+        /*try {
             if (unsolidMilestones.size() > 0) {
                 log.info("Scanning remaining unsolid milestones. Remaining: " + unsolidMilestones.size());
                 int processed = 0;
@@ -157,7 +157,7 @@ public class MilestoneSolidifierImpl implements MilestoneSolidifier {
             }
         } catch (Exception e) {
             log.warn("Error checking milestone validity.", e);
-        }
+        }*/
         milestoneSolidifier.interrupt();
     }
 
